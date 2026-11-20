@@ -689,8 +689,9 @@ class BehaviourTest : ScreenTest() {
     }
 
     @Test fun theMachineOffForWantOfTrackingSaysWhy() {
-        assertEquals("Off - needs exact call tracking", answerSummary(AnswerUi(callTracking = false)))
-        assertEquals("Off", answerSummary(AnswerUi()))
+        val ctx = RuntimeEnvironment.getApplication()
+        assertEquals("Off - needs exact call tracking", answerSummary(ctx, AnswerUi(callTracking = false)))
+        assertEquals("Off", answerSummary(ctx, AnswerUi()))
     }
 
     @Test fun theTileRowSaysWhenTheTileIsInThePanel() {
@@ -884,7 +885,7 @@ class BehaviourTest : ScreenTest() {
         // Memo's marks are measured by their dot or icon, which Settings
         // draws larger; the others whole, which it draws at the header's size.
         val tagOf = { mark: HeaderMark -> if (look == Look.MEMO) markGlyphTag(mark) else markFaceTag(mark) }
-        val inHeader = headerMarks(marks(Fixtures.ready(), answering = true), RecorderStatus.READY)
+        val inHeader = headerMarks(compose.activity, marks(Fixtures.ready(), answering = true), RecorderStatus.READY)
             .mapNotNull { mark ->
                 // Twice in the header, each line laying out what it can show
                 // unseen (SteadyLine): the same composable, one size.
@@ -915,7 +916,7 @@ class BehaviourTest : ScreenTest() {
         showApp(vm, look = LookChoice(Look.DECK))
         // What the header would show, from the same facts: here AUTO, ANS and
         // DEL 90D lit, MSG dark - no messenger is installed on the test phone.
-        val shown = headerMarks(marks(vm.state.value, answering = true), recorderStatus(vm.state.value))
+        val shown = headerMarks(compose.activity, marks(vm.state.value, answering = true), recorderStatus(vm.state.value))
         assertEquals(listOf("AUTO", "ANS", "DEL 90D"), shown.filter { it.lit }.map { it.label })
         for (mark in shown) compose.onNodeWithTag(markTag(mark), useUnmergedTree = true).assertExists()
         compose.onAllNodesWithText("ANS").assertCountEquals(0)
@@ -1506,7 +1507,7 @@ class BehaviourTest : ScreenTest() {
         val vm = homeIn(Look.MEMO)
         val said = compose.onNodeWithContentDescription("Ready to record. Records every call.", substring = true)
             .fetchSemanticsNode().config[SemanticsProperties.ContentDescription]
-        assertEquals(listOf(headerSpeech(vm.state.value, marks(vm.state.value, answering = false))), said)
+        assertEquals(listOf(headerSpeech(compose.activity, vm.state.value, marks(vm.state.value, answering = false))), said)
     }
 
     @Test fun decksLcdIsOneSentenceToAScreenReader() {

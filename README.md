@@ -185,6 +185,9 @@ screens.
 | **Open your banking app** | Some banking apps won't open while Developer options or debugging is on. Turning JemRec off can hide Developer options too, or switch all debugging off; turning it on puts back what it switched off - away from Wi-Fi too, with *Start without Wi-Fi*. Settings → When JemRec is off. → [more](docs/ARCHITECTURE.md#off-and-debugging-with-it) |
 | **Three looks** | Memo, calm and simple; Deck, a pocket recorder with an LCD and a REC key; Multitrack, a sound editor with a colour for each caller. Each light, dark or as the phone, in Settings → Theme. → [more](docs/ARCHITECTURE.md#three-looks) |
 
+The app follows the phone's language: English, Turkish or Ukrainian; any other
+language shows English. There is no in-app language setting.
+
 Recordings are Opus files in the phone's standard `Recordings/JemRec` folder,
 where any file manager or music app can open them - or in a folder you choose.
 

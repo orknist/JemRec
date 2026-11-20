@@ -1,6 +1,7 @@
 package com.jemcik.jemrec.ui
 
 import android.app.Application
+import com.jemcik.jemrec.R
 import android.util.Log
 import com.jemcik.jemrec.capture.CaptureDaemon
 import com.jemcik.jemrec.capture.DebugNotificationCleaner
@@ -38,12 +39,12 @@ private const val RECORDER_ELSEWHERE_MS = 30_000L
 
 /** Why Start recorder did not start it, by the cause its revive left; null
  *  is no cause kept - JemRec off, or setup unfinished. */
-internal fun notStarted(cause: RecorderHealth.Problem?): String = when (cause) {
-    RecorderHealth.Problem.NEEDS_WIFI -> "it needs Wi-Fi for a few seconds, or Start without Wi-Fi's port"
-    RecorderHealth.Problem.NETWORK_NOT_ALLOWED -> "Android has not allowed Wireless debugging on this Wi-Fi"
-    RecorderHealth.Problem.CANNOT_CONNECT -> "JemRec cannot connect to Wireless debugging - the pairing may be gone"
-    RecorderHealth.Problem.CANNOT_START -> "it would not start on this network"
-    null -> "JemRec is off, or setup has not finished"
+internal fun notStarted(context: android.content.Context, cause: RecorderHealth.Problem?): String = when (cause) {
+    RecorderHealth.Problem.NEEDS_WIFI -> context.getString(R.string.recorder_not_started_wifi)
+    RecorderHealth.Problem.NETWORK_NOT_ALLOWED -> context.getString(R.string.recorder_not_started_network)
+    RecorderHealth.Problem.CANNOT_CONNECT -> context.getString(R.string.recorder_not_started_connect)
+    RecorderHealth.Problem.CANNOT_START -> context.getString(R.string.recorder_not_started_network_start)
+    null -> context.getString(R.string.recorder_not_started_off)
 }
 
 /**
@@ -488,7 +489,7 @@ internal class RecorderAndSetup(
         if (CaptureDaemon.revive(app, request = CaptureDaemon.Request.USER)) {
             log.say("recorder running on 127.0.0.1:${CaptureDaemon.PORT}")
         } else {
-            log.say("could not start the recorder: ${notStarted(RecorderHealth.cause(app))}")
+            log.say("could not start the recorder: ${notStarted(app, RecorderHealth.cause(app))}")
         }
         reading.refresh()
     }

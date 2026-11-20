@@ -11,6 +11,8 @@ import android.os.Build
 import android.os.IBinder
 import android.os.SystemClock
 import android.util.Log
+import androidx.annotation.StringRes
+import com.jemcik.jemrec.R
 import com.jemcik.jemrec.adb.AdbTransport
 import com.jemcik.jemrec.setup.PairingNotification
 import com.jemcik.jemrec.setup.Setup
@@ -69,7 +71,7 @@ class PairingService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         // Foreground FIRST, inside the window the system allows for it, under
         // the pairing notification itself - one card for the whole of pairing.
-        promote(PairingNotification.build(this, "Pairing…", withReply = false))
+        promote(PairingNotification.build(this, getString(R.string.pair_svc_pairing), withReply = false))
 
         if (running) {
             // A second tap on Enter code while the first is in flight would
@@ -83,7 +85,7 @@ class PairingService : Service() {
         )
 
         if (code == null) {
-            finishWith("That was not six digits. Try again.", withReply = true)
+            finishWith(getString(R.string.pair_svc_not_six), withReply = true)
             return START_NOT_STICKY
         }
 
@@ -129,18 +131,12 @@ class PairingService : Service() {
             // opened and means nothing to anyone.
             val port = steps.discover(app)
             if (port == null) {
-                finishWith(
-                    "No pairing dialog found. Open it in Settings and tap Enter code again.",
-                    withReply = true,
-                )
+                finishWith(getString(R.string.pair_svc_no_dialog), withReply = true)
                 return
             }
 
             if (!steps.pair(app, port, code)) {
-                finishWith(
-                    "Pairing failed. Reopen the dialog for a fresh code and try again.",
-                    withReply = true,
-                )
+                finishWith(getString(R.string.pair_svc_failed), withReply = true)
                 return
             }
             stage = Stage.CONNECTING
@@ -151,26 +147,22 @@ class PairingService : Service() {
             Setup.markPaired(app)
 
             if (!steps.connect(this, app)) {
-                finishWith(timedOut(Stage.CONNECTING), withReply = false)
+                finishWith(timedOut(this, Stage.CONNECTING), withReply = false)
                 return
             }
 
             stage = Stage.FINISHING
-            say("Paired. Starting the recorder…")
+            say(getString(R.string.pair_svc_starting))
             if (steps.finish(app)) {
                 Log.i(TAG, "pairing service: done")
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 PairingNotification.dismiss(app)
                 stopSelf()
             } else {
-                finishWith(
-                    "Paired, but the recorder did not start. Reopen JemRec - it will " +
-                        "finish on its own.",
-                    withReply = false,
-                )
+                finishWith(getString(R.string.pairing_paired_no_recorder_full), withReply = false)
             }
         } catch (t: Throwable) {
-            val said = failureText(t) ?: throw t
+            val said = failureText(this, t) ?: throw t
             Log.e(TAG, "pairing service: failed", t)
             finishWith(said, withReply = false)
         }
@@ -194,30 +186,16 @@ class PairingService : Service() {
             val usbOff = usb == GlobalSettings.Reading.OFF
             val wd = Setup.wirelessDebuggingOn(app)
             when {
-                usbOff && !wd -> say(
-                    "Paired! In Developer options turn on USB debugging and " +
-                        "Wireless debugging - any order. I connect the moment both are on."
-                )
-                usbOff -> say(
-                    "Paired! USB debugging switched itself off - turn it on again " +
-                        "(a couple of rows above Wireless debugging). I connect the " +
-                        "moment it is on."
-                )
-                !wd && usb == GlobalSettings.Reading.UNKNOWN -> say(
-                    "Paired! Wireless debugging is off - turn it on again, and USB " +
-                        "debugging too if it is not on. I connect the moment it is on."
-                )
-                !wd -> say(
-                    "Paired! Wireless debugging switched itself off - turn it on " +
-                        "again. I connect the moment it is on."
-                )
+                usbOff && !wd -> say(getString(R.string.pairing_paired_usb_wireless))
+                usbOff -> say(getString(R.string.pairing_paired_usb_off_full))
+                !wd && usb == GlobalSettings.Reading.UNKNOWN -> say(getString(R.string.pairing_paired_wireless_off_full))
+                !wd -> say(getString(R.string.pairing_paired_wireless_switched_full))
                 else -> {
                     say(
                         if (usb == GlobalSettings.Reading.UNKNOWN) {
-                            "Paired. Connecting… If this takes long, check that USB " +
-                                "debugging is on too."
+                            getString(R.string.pairing_paired_connecting_usb_full)
                         } else {
-                            "Paired. Connecting…"
+                            getString(R.string.pairing_paired_connecting)
                         }
                     )
                     if (AdbTransport.autoConnect(app, timeoutMs = 5_000).isSuccess) return true
@@ -258,7 +236,7 @@ class PairingService : Service() {
      */
     override fun onTimeout(startId: Int) {
         // Nothing paired yet: the code field again, as for a failed pairing.
-        finishWith(timedOut(stage), withReply = stage == Stage.PAIRING)
+        finishWith(timedOut(this, stage), withReply = stage == Stage.PAIRING)
     }
 
     /** How far a pairing has gone: what the cap cuts short is said by it. */
@@ -319,6 +297,13 @@ class PairingService : Service() {
 internal fun pairingCodeFrom(text: CharSequence?): String? =
     text?.toString()?.filter(Char::isDigit)?.takeIf { it.length == 6 }
 
+@StringRes
+internal fun timedOutRes(stage: PairingService.Stage): Int = when (stage) {
+    PairingService.Stage.PAIRING -> R.string.pairing_timeout
+    PairingService.Stage.CONNECTING -> R.string.pairing_connect_timeout_full
+    PairingService.Stage.FINISHING -> R.string.pairing_setup_timeout_full
+}
+
 /**
  * What the pairing notification says when the pairing ran out of time, by
  * how far it had gone: still pairing - libadb's pair has no time limit of
@@ -327,16 +312,8 @@ internal fun pairingCodeFrom(text: CharSequence?): String? =
  * connect in time ... it will say which switch to turn on", false in the
  * first and the last.
  */
-internal fun timedOut(stage: PairingService.Stage): String = when (stage) {
-    PairingService.Stage.PAIRING ->
-        "Pairing did not finish in time. Reopen the dialog for a fresh code and try again."
-    PairingService.Stage.CONNECTING ->
-        "Paired! I could not connect in time. Reopen JemRec to finish - it " +
-            "will say which switch to turn on. No need to pair again."
-    PairingService.Stage.FINISHING ->
-        "Paired, but setup did not finish in time. Reopen JemRec - it will finish " +
-            "on its own. No need to pair again."
-}
+internal fun timedOut(context: Context, stage: PairingService.Stage): String =
+    context.getString(timedOutRes(stage))
 
 /**
  * What the pairing notification says after [t] ended a pairing; null for a
@@ -345,9 +322,9 @@ internal fun timedOut(stage: PairingService.Stage): String = when (stage) {
  * first: the cancellation that followed replaced them with "Something went
  * wrong: Job was cancelled" (read from the code, 2026-11-14).
  */
-internal fun failureText(t: Throwable): String? =
+internal fun failureText(context: Context, t: Throwable): String? =
     if (t is kotlin.coroutines.cancellation.CancellationException) {
         null
     } else {
-        "Something went wrong: ${t.message}"
+        context.getString(R.string.pairing_something_wrong, t.message ?: "")
     }

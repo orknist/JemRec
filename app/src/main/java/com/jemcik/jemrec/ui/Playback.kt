@@ -11,6 +11,7 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import com.google.common.util.concurrent.ListenableFuture
+import com.jemcik.jemrec.R
 import com.jemcik.jemrec.answering.Greeting
 import com.jemcik.jemrec.capture.PlaybackService
 import com.jemcik.jemrec.playback.Output
@@ -149,7 +150,12 @@ internal class Playback(
      *  (PlaybackRules.titles), its uri sent as the request's, which reaches
      *  the session where a MediaItem's own does not. */
     private fun mediaItem(recording: Recording): MediaItem {
-        val titles = PlaybackRules.titles(recording.caller, recording.app, recording.message, recording.whenLabel)
+        val kind = when {
+            recording.message -> app.getString(R.string.a11y_message)
+            recording.app != null -> app.getString(R.string.app_call, recording.app)
+            else -> app.getString(R.string.phone_call)
+        }
+        val titles = PlaybackRules.titles(recording.caller, kind, recording.whenLabel)
         return MediaItem.Builder()
             .setMediaId(recording.name)
             .setUri(recording.uri)

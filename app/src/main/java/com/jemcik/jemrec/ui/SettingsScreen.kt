@@ -51,6 +51,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.jemcik.jemrec.R
@@ -125,14 +126,16 @@ fun SettingsScreen(
     if (state.confirmingReset) {
         AlertDialog(
             onDismissRequest = vm::cancelReset,
-            title = { Text("Start fresh?") },
+            title = { Text(stringResource(R.string.settings_start_fresh_title)) },
             text = {
-                Text(startFreshWords(handsBack = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU))
+                Text(startFreshWords(context, handsBack = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU))
             },
             confirmButton = {
-                TextButton(onClick = { haptics.confirm(); vm.confirmReset() }) { Text("Start fresh") }
+                TextButton(onClick = { haptics.confirm(); vm.confirmReset() }) {
+                    Text(stringResource(R.string.settings_start_fresh))
+                }
             },
-            dismissButton = { TextButton(onClick = vm::cancelReset) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = vm::cancelReset) { Text(stringResource(R.string.settings_cancel)) } },
         )
     }
 
@@ -150,45 +153,48 @@ fun SettingsScreen(
             dismiss = { dialog = null },
         )
         SettingsDialog.QUALITY -> ChoiceDialog(
-            title = "Quality",
-            intro = "For calls recorded from now on. Recordings already made keep theirs.",
+            title = stringResource(R.string.settings_quality),
+            intro = stringResource(R.string.settings_quality_intro),
             choices = RecordingQuality.entries,
             selected = state.quality,
-            label = ::qualityLabel,
-            detail = ::qualityDetail,
+            label = { qualityLabel(context, it) },
+            detail = { qualityDetail(context, it) },
             detailIsExample = false,
             onChoose = vm::setQuality,
             onDismiss = { dialog = null },
         )
         SettingsDialog.OLD -> ChoiceDialog(
-            title = "Auto-delete old recordings",
-            intro = KEPT_AND_TRASH,
+            title = stringResource(R.string.settings_auto_delete_old),
+            intro = keptAndTrashIntro(),
             choices = Retention.AGE_CHOICES,
             selected = state.autoDeleteAfterDays,
-            label = ::ageChoice,
+            label = { ageChoice(context, it) },
+
             onChoose = { vm.setAutoDelete(afterDays = it) },
             onDismiss = { dialog = null },
             enabled = !state.busy,
         )
         SettingsDialog.SHORT -> ChoiceDialog(
-            title = "Auto-delete short calls",
-            intro = KEPT_AND_TRASH,
+            title = stringResource(R.string.settings_auto_delete_short),
+            intro = keptAndTrashIntro(),
             choices = Retention.SHORT_CHOICES,
             selected = state.autoDeleteShorterThan,
-            label = { if (it == 0) "Off" else "Shorter than $it seconds" },
+            label = {
+                if (it == 0) context.getString(R.string.am_off)
+                else context.getString(R.string.settings_shorter_than_seconds, it)
+            },
             onChoose = { vm.setAutoDelete(shorterThan = it) },
             onDismiss = { dialog = null },
             enabled = !state.busy,
         )
         SettingsDialog.PLAY_THROUGH -> ChoiceDialog(
-            title = "Play recordings",
-            intro = "Headphones or Bluetooth, when they are in, always come first. The player's " +
-                "button moves the recording playing, until the next.",
+            title = stringResource(R.string.settings_play_recordings),
+            intro = stringResource(R.string.settings_play_intro),
             choices = PlayThrough.entries.filter { it != PlayThrough.LOUDSPEAKER_AND_EAR || state.raiseAvailable },
             selected = state.playThrough.takeIf { it != PlayThrough.LOUDSPEAKER_AND_EAR || state.raiseAvailable }
                 ?: PlayThrough.LOUDSPEAKER,
-            label = { playThroughLabel(it, state.raiseAvailable) },
-            detail = ::playThroughDetail,
+            label = { playThroughLabel(context, it, state.raiseAvailable) },
+            detail = { playThroughDetail(context, it) },
             detailIsExample = false,
             onChoose = vm::setPlayThrough,
             onDismiss = { dialog = null },
@@ -201,18 +207,14 @@ fun SettingsScreen(
         // does. Cancel leaves both on.
         SettingsDialog.TRACKING_OFF -> AlertDialog(
             onDismissRequest = { dialog = null },
-            title = { Text("Turn off the answering machine too?") },
+            title = { Text(stringResource(R.string.settings_tracking_off_title)) },
             text = {
-                Text(
-                    "The answering machine needs exact call tracking to answer calls, so it goes " +
-                        "off with it. Turning tracking back on leaves the machine off: switch it on " +
-                        "again in Answering machine."
-                )
+                Text(stringResource(R.string.settings_tracking_off_body))
             },
             confirmButton = {
-                TextButton(onClick = { haptics.confirm(); dialog = null; vm.setCallTracking(false) }) { Text("Turn both off") }
+                TextButton(onClick = { haptics.confirm(); dialog = null; vm.setCallTracking(false) }) { Text(stringResource(R.string.settings_turn_both_off)) }
             },
-            dismissButton = { TextButton(onClick = { dialog = null }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { dialog = null }) { Text(stringResource(R.string.settings_cancel)) } },
         )
         null -> Unit
     }
@@ -232,18 +234,15 @@ fun SettingsScreen(
                     Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Text("Show who called", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.settings_show_who_called), style = MaterialTheme.typography.titleMedium)
                     Text(
-                        "Each recording labelled with the contact's name and photo, or " +
-                            "the number, and a warning if a call ever goes by unrecorded. " +
-                            "Needs your call log and contacts. Applies to recordings " +
-                            "you already have.",
+                        stringResource(R.string.settings_show_who_body),
                         style = MaterialTheme.typography.bodyMedium,
                     )
                     FilledTonalButton(
                         onClick = { haptics.tap(); askForCallLog() },
                         modifier = Modifier.align(Alignment.End),
-                    ) { Text("Allow") }
+                    ) { Text(stringResource(R.string.settings_allow)) }
                 }
             }
         }
@@ -253,25 +252,24 @@ fun SettingsScreen(
         val answer by vm.answer.state.collectAsState()
         val headerFacts = marks(state, answer.enabled)
         val status = recorderStatus(state)
-        SettingsGroup("Recording") {
+        SettingsGroup(stringResource(R.string.recording)) {
             row {
                 SwitchRow(
-                    title = "Record every call",
+                    title = stringResource(R.string.settings_record_every_call),
                     summary = if (state.automatic) {
-                        "Every call, without asking"
+                        stringResource(R.string.settings_every_call_without_asking)
                     } else {
-                        "Asks with a notification when a call starts. The opening " +
-                            "seconds are not saved."
+                        stringResource(R.string.settings_asks_notification)
                     },
-                    mark = headerMark(Marked.MODE, headerFacts, status),
+                    mark = headerMark(context, Marked.MODE, headerFacts, status),
                     checked = state.automatic,
                     onCheckedChange = vm::setAutomatic,
                 )
             }
             row {
-                val rules = rulesSummary(state)
+                val rules = rulesSummary(context, state)
                 SettingsRow(
-                    title = "Whose calls to keep",
+                    title = stringResource(R.string.settings_whose_calls),
                     summary = rules.text,
                     summaryColor = if (rules.nothing) {
                         MaterialTheme.colorScheme.error
@@ -284,17 +282,17 @@ fun SettingsScreen(
             }
             row {
                 SettingsRow(
-                    title = "Answering machine",
-                    summary = answerSummary(answer),
-                    mark = headerMark(Marked.ANSWERING, headerFacts, status),
+                    title = stringResource(R.string.settings_answering_machine),
+                    summary = answerSummary(context, answer),
+                    mark = headerMark(context, Marked.ANSWERING, headerFacts, status),
                     onClick = { vm.showScreen(Screen.ANSWERING_MACHINE) },
                 )
             }
             row {
                 SettingsRow(
-                    title = "Messenger calls",
-                    summary = messengerSummary(state),
-                    mark = headerMark(Marked.MESSENGERS, headerFacts, status),
+                    title = stringResource(R.string.settings_messenger_calls),
+                    summary = messengerSummary(context, state),
+                    mark = headerMark(context, Marked.MESSENGERS, headerFacts, status),
                     onClick = { vm.showScreen(Screen.MESSENGER_CALLS) },
                 )
             }
@@ -302,11 +300,11 @@ fun SettingsScreen(
             // off, and off is exactly how JemRec worked before it. See CallTracking.
             row {
                 SwitchRow(
-                    title = "Exact call tracking",
+                    title = stringResource(R.string.settings_exact_call_tracking),
                     summary = if (state.callTracking) {
-                        "Starts each recording at the answer, and skips calls nobody answered"
+                        stringResource(R.string.settings_tracking_on_summary)
                     } else {
-                        "Recordings start when a call does, ringing included"
+                        stringResource(R.string.settings_tracking_off_summary)
                     },
                     icon = Icons.Filled.Phone,
                     checked = state.callTracking,
@@ -319,11 +317,13 @@ fun SettingsScreen(
             }
         }
 
-        SettingsGroup("Look") {
+        SettingsGroup(stringResource(R.string.look)) {
             row {
                 SettingsRow(
-                    title = "Theme",
-                    summary = LocalLookChoice.current.let { "${lookName(it.look)} · ${lightDarkSummary(it.lightDark)}" },
+                    title = stringResource(R.string.settings_theme),
+                    summary = LocalLookChoice.current.let {
+                        "${stringResource(lookNameRes(it.look))} · ${stringResource(lightDarkSummaryRes(it.lightDark))}"
+                    },
                     icon = SettingsIcons.Palette,
                     onClick = { vm.showScreen(Screen.THEME) },
                 )
@@ -334,12 +334,12 @@ fun SettingsScreen(
         // a tablet has none - and the earpiece at the ear only with a
         // proximity sensor to know when it is there. Both sides in both ears
         // everywhere: headphones are everywhere.
-        SettingsGroup("Playing") {
+        SettingsGroup(stringResource(R.string.playing)) {
             if (state.earpieceAvailable) {
                 row {
                     SettingsRow(
-                        title = "Play recordings",
-                        summary = playThroughLabel(state.playThrough, state.raiseAvailable),
+                        title = stringResource(R.string.settings_play_recordings),
+                        summary = playThroughLabel(context, state.playThrough, state.raiseAvailable),
                         icon = EarpieceIcons.Ear,
                         onClick = { dialog = SettingsDialog.PLAY_THROUGH },
                     )
@@ -347,11 +347,11 @@ fun SettingsScreen(
             }
             row {
                 SwitchRow(
-                    title = "Both sides in both ears",
+                    title = stringResource(R.string.settings_both_ears),
                     summary = if (state.bothEars) {
-                        "Each ear hears the whole call"
+                        stringResource(R.string.settings_both_ears_on)
                     } else {
-                        "Each side of the call in its own ear, as recorded"
+                        stringResource(R.string.settings_both_ears_off)
                     },
                     icon = SettingsIcons.Headset,
                     checked = state.bothEars,
@@ -360,20 +360,20 @@ fun SettingsScreen(
             }
         }
 
-        SettingsGroup("Saving") {
+        SettingsGroup(stringResource(R.string.saving)) {
             row {
                 SettingsRow(
-                    title = "Saving to",
+                    title = stringResource(R.string.settings_saving_to),
                     summary = state.folder,
                     icon = SettingsIcons.Folder,
                     onClick = { dialog = SettingsDialog.FOLDER },
                 )
             }
             row {
-                val problem = fileNamesProblem(state)
+                val problem = fileNamesProblem(context, state)
                 SettingsRow(
-                    title = "File names",
-                    summary = problem ?: fileNamesLabel(state.fileNames),
+                    title = stringResource(R.string.settings_file_names),
+                    summary = problem ?: fileNamesLabel(context, state.fileNames),
                     summaryColor = if (problem != null) {
                         MaterialTheme.colorScheme.error
                     } else {
@@ -385,8 +385,12 @@ fun SettingsScreen(
             }
             row {
                 SettingsRow(
-                    title = "Quality",
-                    summary = "${qualityLabel(state.quality)}, about ${state.quality.mbPerHour} MB an hour",
+                    title = stringResource(R.string.settings_quality),
+                    summary = context.getString(
+                        R.string.settings_quality_row,
+                        qualityLabel(context, state.quality),
+                        state.quality.mbPerHour,
+                    ),
                     icon = SettingsIcons.GraphicEq,
                     onClick = { dialog = SettingsDialog.QUALITY },
                 )
@@ -396,23 +400,23 @@ fun SettingsScreen(
             // fearing it.
             row {
                 SettingsRow(
-                    title = "Auto-delete old recordings",
+                    title = stringResource(R.string.settings_auto_delete_old),
                     summary = if (state.autoDeleteAfterDays == 0) {
-                        "Never"
+                        stringResource(R.string.settings_never)
                     } else {
-                        "Older than ${ageChoice(state.autoDeleteAfterDays)}"
+                        stringResource(R.string.settings_older_than, ageChoice(context, state.autoDeleteAfterDays))
                     },
-                    mark = headerMark(Marked.AUTO_DELETE, headerFacts, status),
+                    mark = headerMark(context, Marked.AUTO_DELETE, headerFacts, status),
                     onClick = { dialog = SettingsDialog.OLD },
                 )
             }
             row {
                 SettingsRow(
-                    title = "Auto-delete short calls",
+                    title = stringResource(R.string.settings_auto_delete_short),
                     summary = if (state.autoDeleteShorterThan == 0) {
-                        "Off"
+                        stringResource(R.string.am_off)
                     } else {
-                        "Shorter than ${state.autoDeleteShorterThan} seconds"
+                        stringResource(R.string.settings_shorter_than_seconds, state.autoDeleteShorterThan)
                     },
                     icon = SettingsIcons.Timer,
                     onClick = { dialog = SettingsDialog.SHORT },
@@ -420,11 +424,11 @@ fun SettingsScreen(
             }
             row {
                 SettingsRow(
-                    title = "Recently deleted",
+                    title = stringResource(R.string.screen_trash),
                     summary = when (val count = state.trashed.size) {
-                        0 -> "Empty"
-                        1 -> "1 recording, restorable for ${Trash.DAYS} days"
-                        else -> "$count recordings, restorable for ${Trash.DAYS} days"
+                        0 -> stringResource(R.string.settings_empty)
+                        1 -> stringResource(R.string.settings_one_recording_restorable, Trash.DAYS)
+                        else -> stringResource(R.string.settings_n_recordings_restorable, count, Trash.DAYS)
                     },
                     icon = Icons.Filled.Delete,
                     onClick = vm::showTrash,
@@ -432,17 +436,17 @@ fun SettingsScreen(
             }
         }
 
-        SettingsGroup("Notifications and shortcuts") {
+        SettingsGroup(stringResource(R.string.settings_group_notifications)) {
             // The notification that follows each call. Its switch is only about
             // the everyday one: a recording that came out silent is reported
             // either way, because that is the news nobody should miss.
             row {
                 SwitchRow(
-                    title = "Show each call when it ends",
+                    title = stringResource(R.string.settings_show_each_call),
                     summary = if (state.afterCallNotice) {
-                        "A notification with Play, Share and Delete"
+                        stringResource(R.string.settings_after_call_on)
                     } else {
-                        "Only when a recording comes out silent"
+                        stringResource(R.string.settings_after_call_silent_only)
                     },
                     icon = Icons.Filled.Notifications,
                     checked = state.afterCallNotice,
@@ -458,12 +462,12 @@ fun SettingsScreen(
             // again; if not, its answer is said back.
             row {
                 SettingsRow(
-                    title = "Quick Settings tile",
+                    title = stringResource(R.string.settings_quick_settings_tile),
                     summary = when {
-                        state.tileAdded -> "In your Quick Settings panel"
+                        state.tileAdded -> stringResource(R.string.settings_tile_added)
                         Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU ->
-                            "Turn recording on and off from the panel. Tap to add it."
-                        else -> "Edit the Quick Settings panel and drag JemRec into place"
+                            stringResource(R.string.settings_tile_add_tiramisu)
+                        else -> stringResource(R.string.settings_tile_legacy)
                     },
                     icon = SettingsIcons.Tile,
                     onClick = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -477,11 +481,11 @@ fun SettingsScreen(
 
         // Debugging, and what JemRec does with it: Android's reminder that it is
         // on, and what else goes off when JemRec does (issue #37).
-        SettingsGroup("Debugging") {
+        SettingsGroup(stringResource(R.string.settings_group_debugging)) {
             row {
                 SettingsRow(
-                    title = "When JemRec is off",
-                    summary = offModeTitle(state.offMode),
+                    title = stringResource(R.string.settings_when_off),
+                    summary = offModeTitle(context, state.offMode),
                     icon = SettingsIcons.Power,
                     onClick = { vm.showScreen(Screen.WHEN_OFF) },
                 )
@@ -490,8 +494,8 @@ fun SettingsScreen(
             // it is set: an open port is not a detail to find out later.
             row {
                 SwitchRow(
-                    title = "Start without Wi-Fi",
-                    summary = startWithoutWifiSummary(state),
+                    title = stringResource(R.string.settings_start_without_wifi),
+                    summary = startWithoutWifiSummary(context, state),
                     summaryColor = if (startWithoutWifiFailed(state)) {
                         MaterialTheme.colorScheme.error
                     } else {
@@ -509,10 +513,9 @@ fun SettingsScreen(
             // DebugNotificationCleaner.
             row {
                 SwitchRow(
-                    title = "Hide the debugging notification",
-                    summary = state.debugNotificationProblem?.let(::grantProblem)
-                        ?: ("Debugging stays on for recording, so a paired computer can " +
-                            "still connect on Wi-Fi"),
+                    title = stringResource(R.string.settings_hide_debug_notification),
+                    summary = state.debugNotificationProblem?.let { grantProblem(context, it) }
+                        ?: stringResource(R.string.settings_hide_debug_summary),
                     summaryColor = if (state.debugNotificationProblem != null) {
                         MaterialTheme.colorScheme.error
                     } else {
@@ -527,8 +530,8 @@ fun SettingsScreen(
             // switch shows Android's setting as read, whoever set it.
             row {
                 SwitchRow(
-                    title = "Keep JemRec paired",
-                    summary = keepPairedSummary(state),
+                    title = stringResource(R.string.settings_keep_paired),
+                    summary = keepPairedSummary(context, state),
                     summaryColor = if (state.keepPairedRefused) {
                         MaterialTheme.colorScheme.error
                     } else {
@@ -541,7 +544,7 @@ fun SettingsScreen(
             }
         }
 
-        SettingsGroup("Troubleshooting") {
+        SettingsGroup(stringResource(R.string.troubleshooting)) {
             // ONLY WHERE THERE IS SOMETHING TO OPEN. On a phone with no launch
             // manager this row would be an offer to fix something that is not
             // broken, which is worse than saying nothing - so AutoStart answers
@@ -549,10 +552,8 @@ fun SettingsScreen(
             if (autoStart != null) {
                 row {
                     SettingsRow(
-                        title = "Survive a restart",
-                        summary = "Allow JemRec in $autoStart, so it can " +
-                            "start again by itself after a reboot, and this " +
-                            "phone does not stop it in the background",
+                        title = stringResource(R.string.settings_survive_restart),
+                        summary = context.getString(R.string.settings_survive_restart_body, autoStart),
                         icon = Icons.Filled.Refresh,
                         onClick = { AutoStart.open(context) },
                         modifier = Modifier.bringIntoViewRequester(background),
@@ -561,8 +562,8 @@ fun SettingsScreen(
             }
             row {
                 SettingsRow(
-                    title = "Diagnostics",
-                    summary = if (state.daemonRunning) "Recorder running" else "Recorder not running",
+                    title = stringResource(R.string.settings_diagnostics),
+                    summary = if (state.daemonRunning) stringResource(R.string.settings_recorder_running) else stringResource(R.string.settings_recorder_not_running),
                     summaryColor = if (state.daemonRunning) {
                         MaterialTheme.colorScheme.onSurfaceVariant
                     } else {
@@ -576,9 +577,8 @@ fun SettingsScreen(
             // still asks before doing anything.
             row {
                 SettingsRow(
-                    title = "Start fresh",
-                    summary = "Set JemRec up again from the first step. Your " +
-                        "recordings are kept.",
+                    title = stringResource(R.string.settings_start_fresh),
+                    summary = stringResource(R.string.settings_start_fresh_summary),
                     titleColor = MaterialTheme.colorScheme.error,
                     iconTint = MaterialTheme.colorScheme.error,
                     icon = SettingsIcons.Restore,
@@ -591,18 +591,18 @@ fun SettingsScreen(
 
         // What is installed, and the way to the newest beside it (discussion
         // #91): JemRec asks no server itself.
-        SettingsGroup("About") {
+        SettingsGroup(stringResource(R.string.about)) {
             row {
                 SettingsRow(
-                    title = "JemRec version",
+                    title = stringResource(R.string.settings_version),
                     summary = state.appVersion,
                     icon = Icons.Filled.Info,
                 )
             }
             row {
                 SettingsRow(
-                    title = "Newest version",
-                    summary = "On GitHub, in your browser",
+                    title = stringResource(R.string.settings_newest_version),
+                    summary = stringResource(R.string.settings_newest_version_summary),
                     icon = SettingsIcons.OpenInNew,
                     onClick = vm::openNewestVersion,
                 )
@@ -611,27 +611,31 @@ fun SettingsScreen(
     }
 }
 
-/** What auto-delete promises, said wherever one of its rules is chosen. */
-private const val KEPT_AND_TRASH = "Recordings you mark to keep are never removed. " +
-    "Anything removed waits in Recently deleted for ${Trash.DAYS} days first."
+@Composable
+private fun keptAndTrashIntro(): String =
+    stringResource(R.string.settings_kept_and_trash, Trash.DAYS)
 
 /** An age to choose, in the header's words for it (ageWords) - or Never. */
-private fun ageChoice(days: Int): String = if (days == 0) "Never" else ageWords(days)
+private fun ageChoice(context: android.content.Context, days: Int): String =
+    if (days == 0) context.getString(com.jemcik.jemrec.R.string.settings_never) else ageWords(context, days)
 
-/** "Play recordings" in Settings' words. Without a proximity sensor the
+/** stringResource(R.string.settings_play_recordings) in Settings' words. Without a proximity sensor the
  *  earpiece at the ear is not offered, and the default reads as the
  *  loudspeaker it is there (AtTheEar watches no sensor). */
-internal fun playThroughLabel(playThrough: PlayThrough, raiseAvailable: Boolean): String = when (playThrough) {
-    PlayThrough.LOUDSPEAKER -> "Loudspeaker"
-    PlayThrough.LOUDSPEAKER_AND_EAR -> if (raiseAvailable) "Loudspeaker, earpiece at your ear" else "Loudspeaker"
-    PlayThrough.EARPIECE -> "Earpiece"
-}
+internal fun playThroughLabel(context: Context, playThrough: PlayThrough, raiseAvailable: Boolean): String =
+    when (playThrough) {
+        PlayThrough.LOUDSPEAKER -> context.getString(R.string.loudspeaker)
+        PlayThrough.LOUDSPEAKER_AND_EAR ->
+            if (raiseAvailable) context.getString(R.string.play_through_loudspeaker_and_ear)
+            else context.getString(R.string.loudspeaker)
+        PlayThrough.EARPIECE -> context.getString(R.string.earpiece)
+    }
 
 /** Each choice's line in the dialog: what holding the phone does. */
-private fun playThroughDetail(playThrough: PlayThrough): String = when (playThrough) {
-    PlayThrough.LOUDSPEAKER -> "Holding the phone to your ear changes nothing"
-    PlayThrough.LOUDSPEAKER_AND_EAR -> "Hold the phone to your ear for the earpiece, lower it for the loudspeaker"
-    PlayThrough.EARPIECE -> "Never moves to the loudspeaker by itself"
+private fun playThroughDetail(context: Context, playThrough: PlayThrough): String = when (playThrough) {
+    PlayThrough.LOUDSPEAKER -> context.getString(R.string.play_detail_hold_nothing)
+    PlayThrough.LOUDSPEAKER_AND_EAR -> context.getString(R.string.play_detail_raise)
+    PlayThrough.EARPIECE -> context.getString(R.string.play_detail_earpiece)
 }
 
 /**
@@ -640,9 +644,9 @@ private fun playThroughDetail(playThrough: PlayThrough): String = when (playThro
  * needs Wi-Fi" for every failure, on Wi-Fi too, where what was missing was
  * Wireless debugging, and the recorder grants it now without either.
  */
-internal fun grantProblem(problem: Setup.GrantProblem): String = when (problem) {
-    Setup.GrantProblem.NO_ANSWER -> "Could not turn this on: the recorder did not answer. Try again once JemRec is ready to record."
-    Setup.GrantProblem.REFUSED -> "Could not turn this on: Android refused it."
+internal fun grantProblem(context: Context, problem: Setup.GrantProblem): String = when (problem) {
+    Setup.GrantProblem.NO_ANSWER -> context.getString(R.string.settings_grant_no_answer)
+    Setup.GrantProblem.REFUSED -> context.getString(R.string.settings_grant_refused)
 }
 
 /**
@@ -652,54 +656,59 @@ internal fun grantProblem(problem: Setup.GrantProblem): String = when (problem) 
  * has carried out says when it will be; one the recorder could not, says so,
  * in red, until a try works.
  */
-internal fun keepPairedSummary(state: UiState): String = when {
-    state.keepPairedRefused -> "Could not change this: Android refused it"
+internal fun keepPairedSummary(context: Context, state: UiState): String = when {
+    state.keepPairedRefused -> context.getString(R.string.settings_keep_paired_refused)
     state.keepPairedWaiting == true && !state.pairingKept ->
-        "Turns on when the recorder is running again"
+        context.getString(R.string.settings_keep_paired_turns_on)
     state.keepPairedWaiting == false && state.pairingKept ->
-        "Turns off when the recorder is running again"
+        context.getString(R.string.settings_keep_paired_turns_off)
     // Turned off, Android deletes a pairing older than its days at once:
     // its own check runs as the setting changes (AdbDebuggingManager).
-    state.pairingKept -> "No pairing is forgotten - nor a computer you allowed for USB debugging. " +
-        "Turned off, one older than Android's limit goes at once"
-    else -> "Android forgets JemRec's pairing ${pairingDays(state.pairingDays)} after it is made. " +
-        "Then JemRec has to pair again"
+    state.pairingKept -> context.getString(R.string.settings_keep_paired_kept)
+    else -> context.getString(
+        R.string.settings_keep_paired_forgotten,
+        pairingDays(context, state.pairingDays),
+    )
 }
 
 /** Settings' names for [RecordingQuality]: plain words, the rate in the detail. */
-internal fun qualityLabel(quality: RecordingQuality): String = when (quality) {
-    RecordingQuality.SMALLEST -> "Smallest"
-    RecordingQuality.STANDARD -> "Standard"
-    RecordingQuality.HIGH -> "High"
-    RecordingQuality.HIGHEST -> "Highest"
+internal fun qualityLabel(context: Context, quality: RecordingQuality): String = when (quality) {
+    RecordingQuality.SMALLEST -> context.getString(R.string.quality_smallest)
+    RecordingQuality.STANDARD -> context.getString(R.string.quality_standard)
+    RecordingQuality.HIGH -> context.getString(R.string.quality_high)
+    RecordingQuality.HIGHEST -> context.getString(R.string.quality_highest)
 }
 
 /** What each choice costs, and the one thing the smallest gives up: in a
  *  blind test its messenger call "sounds in mono" (RecordingQuality). */
-private fun qualityDetail(quality: RecordingQuality): String {
-    val size = "${quality.bitRate / 1000} kbps, about ${quality.mbPerHour} MB an hour"
+private fun qualityDetail(context: Context, quality: RecordingQuality): String {
+    val size = context.getString(
+        R.string.quality_detail_size,
+        quality.bitRate / 1000,
+        quality.mbPerHour,
+    )
     return when (quality) {
-        RecordingQuality.SMALLEST -> "$size. The two sides of a call may blend into one."
-        RecordingQuality.HIGHEST -> "$size, as every recording was before JemRec 1.2."
-        else -> "$size."
+        RecordingQuality.SMALLEST -> context.getString(R.string.quality_detail_smallest, size)
+        RecordingQuality.HIGHEST -> context.getString(R.string.quality_detail_highest, size)
+        else -> context.getString(R.string.quality_detail_suffix, size)
     }
 }
 
 /** A format's name - the same words in the dialog and on the row, so the row
  *  shows the option that was picked. */
-private fun fileNamesLabel(format: FileNames.Format): String = when (format) {
-    FileNames.Format.DATE -> "Date and time"
-    FileNames.Format.DATE_AND_CALLER -> "With the caller"
-    FileNames.Format.DATE_AND_NUMBER -> "With the phone number"
-    FileNames.Format.HONOR -> "For Honor's Phone app"
+private fun fileNamesLabel(context: Context, format: FileNames.Format): String = when (format) {
+    FileNames.Format.DATE -> context.getString(R.string.filename_date)
+    FileNames.Format.DATE_AND_CALLER -> context.getString(R.string.filename_date_caller)
+    FileNames.Format.DATE_AND_NUMBER -> context.getString(R.string.filename_date_number)
+    FileNames.Format.HONOR -> context.getString(R.string.filename_honor_label)
 }
 
 /** What stops the chosen format from working yet, or null. */
-internal fun fileNamesProblem(state: UiState): String? = when {
+internal fun fileNamesProblem(context: Context, state: UiState): String? = when {
     state.fileNames != FileNames.Format.DATE && !state.canReadCallLog ->
-        "Needs your call log. Named by date and time until then."
+        context.getString(R.string.filename_needs_call_log)
     state.fileNames == FileNames.Format.HONOR && !state.inHonorFolder ->
-        "Not saving to ${FileNames.HONOR_FOLDER} yet"
+        context.getString(R.string.filename_not_honor_folder, FileNames.HONOR_FOLDER)
     else -> null
 }
 
@@ -735,38 +744,41 @@ private fun rulesCase(state: UiState): RulesCase {
     }
 }
 
-private fun people(state: UiState): String =
-    state.ruleChosen.size.let { if (it == 1) "1 contact" else "$it contacts" }
+private fun people(context: Context, state: UiState): String =
+    state.ruleChosen.size.let { n ->
+        if (n == 1) context.getString(R.string.settings_one_contact)
+        else context.getString(R.string.settings_n_contacts, n)
+    }
 
-internal fun rulesSummary(state: UiState): RulesSummary {
-    if (!state.canReadCallLog || !state.canReadContacts) return RulesSummary("Every call")
-    val people = people(state)
+internal fun rulesSummary(context: Context, state: UiState): RulesSummary {
+    if (!state.canReadCallLog || !state.canReadContacts) {
+        return RulesSummary(context.getString(R.string.rules_summary_every_call))
+    }
+    val who = people(context, state)
     return when (rulesCase(state)) {
-        RulesCase.EVERY -> RulesSummary("Every call")
-        RulesCase.CONTACTS -> RulesSummary("Your contacts, not other numbers")
-        RulesCase.ALL_BUT -> RulesSummary("Everyone but $people")
-        RulesCase.CONTACTS_BUT -> RulesSummary("Your contacts but $people, not other numbers")
-        RulesCase.STRANGERS -> RulesSummary("Only numbers not in your contacts")
-        RulesCase.SOME_AND_STRANGERS -> RulesSummary("$people, and numbers not in your contacts")
-        RulesCase.SOME -> RulesSummary("Only $people")
-        RulesCase.NOTHING -> RulesSummary("No call will be kept", nothing = true)
+        RulesCase.EVERY -> RulesSummary(context.getString(R.string.rules_summary_every_call))
+        RulesCase.CONTACTS -> RulesSummary(context.getString(R.string.rules_summary_contacts))
+        RulesCase.ALL_BUT -> RulesSummary(context.getString(R.string.rules_summary_everyone_but, who))
+        RulesCase.CONTACTS_BUT -> RulesSummary(context.getString(R.string.rules_summary_contacts_but, who))
+        RulesCase.STRANGERS -> RulesSummary(context.getString(R.string.rules_summary_strangers))
+        RulesCase.SOME_AND_STRANGERS -> RulesSummary(context.getString(R.string.rules_summary_some_strangers, who))
+        RulesCase.SOME -> RulesSummary(context.getString(R.string.rules_summary_some, who))
+        RulesCase.NOTHING -> RulesSummary(context.getString(R.string.rules_summary_nothing), nothing = true)
     }
 }
 
 /** The rules as a sentence, at the top of their screen. */
-internal fun rulesSentence(state: UiState): RulesSummary {
-    val people = people(state)
+internal fun rulesSentence(context: Context, state: UiState): RulesSummary {
+    val who = people(context, state)
     return when (rulesCase(state)) {
-        RulesCase.EVERY -> RulesSummary("Every call is kept.")
-        RulesCase.CONTACTS -> RulesSummary("Calls with your contacts are kept. Other numbers are not.")
-        RulesCase.ALL_BUT -> RulesSummary("Every call is kept, except calls with $people.")
-        RulesCase.CONTACTS_BUT ->
-            RulesSummary("Calls with your contacts are kept, except $people. Other numbers are not.")
-        RulesCase.STRANGERS -> RulesSummary("Only calls with numbers not in your contacts are kept.")
-        RulesCase.SOME_AND_STRANGERS ->
-            RulesSummary("Calls with $people, and with numbers not in your contacts, are kept.")
-        RulesCase.SOME -> RulesSummary("Only calls with $people are kept.")
-        RulesCase.NOTHING -> RulesSummary("As set, no call will be kept.", nothing = true)
+        RulesCase.EVERY -> RulesSummary(context.getString(R.string.rules_sentence_every))
+        RulesCase.CONTACTS -> RulesSummary(context.getString(R.string.rules_sentence_contacts))
+        RulesCase.ALL_BUT -> RulesSummary(context.getString(R.string.rules_sentence_all_but, who))
+        RulesCase.CONTACTS_BUT -> RulesSummary(context.getString(R.string.rules_sentence_contacts_but, who))
+        RulesCase.STRANGERS -> RulesSummary(context.getString(R.string.rules_sentence_strangers))
+        RulesCase.SOME_AND_STRANGERS -> RulesSummary(context.getString(R.string.rules_sentence_some_strangers, who))
+        RulesCase.SOME -> RulesSummary(context.getString(R.string.rules_sentence_some, who))
+        RulesCase.NOTHING -> RulesSummary(context.getString(R.string.rules_sentence_nothing), nothing = true)
     }
 }
 
@@ -786,25 +798,25 @@ internal fun rulesSentence(state: UiState): RulesSummary {
  * that did not take (StartWithoutWifi.closeFailedThisBoot), in red: the port
  * stays open until a restart, which no other text would say.
  */
-internal fun startWithoutWifiSummary(state: UiState): String = when {
+internal fun startWithoutWifiSummary(context: Context, state: UiState): String = when {
     !state.startWithoutWifi && state.portSet && state.portOurs && state.portCloseFailed ->
         if (state.debuggingOff) {
-            "This phone would not close debugging port 5555. Shut while debugging is off, it opens with it until the phone restarts"
+            context.getString(R.string.swifi_close_failed_debug)
         } else {
-            "This phone would not close debugging port 5555. It stays open until the phone restarts"
+            context.getString(R.string.swifi_close_failed)
         }
     !state.startWithoutWifi && state.portSet && state.portOurs && state.debuggingOff ->
-        "Debugging port 5555 is closed while debugging is off. It opens with debugging, then closes once JemRec is on a Wi-Fi with Wireless debugging"
+        context.getString(R.string.swifi_closed_reopen_wifi)
     !state.startWithoutWifi && state.portSet && state.portOurs ->
-        "Debugging port 5555 is still open. It closes the next time JemRec is on a Wi-Fi with Wireless debugging, or the phone restarts"
+        context.getString(R.string.swifi_still_open)
     !state.startWithoutWifi ->
-        "Turn JemRec back on with no Wi-Fi. Opens debugging port 5555 to any network the phone joins"
+        context.getString(R.string.swifi_on_no_wifi)
     state.portSet && state.debuggingOff ->
-        "Debugging port 5555 is closed while debugging is off. Turning JemRec on opens it again, with or without Wi-Fi"
+        context.getString(R.string.swifi_closed_reopen_any)
     state.portSet ->
-        "Debugging port 5555 is open to any network the phone joins. After a restart, JemRec needs Wi-Fi once"
-    state.portFailed -> "This phone would not open port 5555. JemRec asks again after a restart"
-    else -> "Opens debugging port 5555 the next time JemRec starts on Wi-Fi"
+        context.getString(R.string.swifi_open_anywhere)
+    state.portFailed -> context.getString(R.string.swifi_open_failed)
+    else -> context.getString(R.string.swifi_opens_on_wifi)
 }
 
 /** The summaries said as an error: switched on and the port not opened, or
@@ -816,12 +828,12 @@ internal fun startWithoutWifiFailed(state: UiState): Boolean =
         state.portCloseFailed && state.portSet && state.portOurs
     }
 
-internal fun messengerSummary(state: UiState): String = when {
-    !state.voipSupported -> "Needs Android 14 or later"
-    state.voipInstalled.isEmpty() -> "None of the supported apps is installed"
+internal fun messengerSummary(context: Context, state: UiState): String = when {
+    !state.voipSupported -> context.getString(R.string.settings_needs_android_14)
+    state.voipInstalled.isEmpty() -> context.getString(R.string.settings_no_voip_installed)
     else -> state.voipInstalled.filter { it.pkg in state.voipEnabled }
         .joinToString(", ") { it.settingsName }
-        .ifEmpty { "Off" }
+        .ifEmpty { context.getString(R.string.am_off) }
 }
 
 /** Where recordings go, and the way to change it. */
@@ -829,7 +841,7 @@ internal fun messengerSummary(state: UiState): String = when {
 private fun FolderDialog(state: UiState, change: () -> Unit, useDefault: () -> Unit, dismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = dismiss,
-        title = { Text("Saving to") },
+        title = { Text(stringResource(R.string.settings_saving_to)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
@@ -840,14 +852,12 @@ private fun FolderDialog(state: UiState, change: () -> Unit, useDefault: () -> U
                 Text(
                     when {
                         state.usingDefaultFolder ->
-                            "The phone's standard Recordings folder. Any file manager " +
-                                "or music app can open these."
-                        state.folderLost ->
-                            "A folder you chose - but JemRec can no longer reach it: " +
-                                "${com.jemcik.jemrec.recordings.FolderAccess.WHY_LOST}. Until you choose it again, " +
-                                "new recordings go to the standard Recordings folder, and the " +
-                                "ones in it do not show."
-                        else -> "A folder you chose."
+                            stringResource(R.string.settings_folder_default)
+                        state.folderLost -> stringResource(
+                            R.string.settings_folder_lost,
+                            stringResource(R.string.folder_why_lost),
+                        )
+                        else -> stringResource(R.string.settings_folder_chosen)
                     },
                     style = MaterialTheme.typography.bodyMedium,
                 )
@@ -856,14 +866,14 @@ private fun FolderDialog(state: UiState, change: () -> Unit, useDefault: () -> U
         confirmButton = {
             // Live while the screen is busy: the folder picked is taken at
             // once (FOLDER_CHOSEN bypasses it), as the busy table has it.
-            TextButton(onClick = change) { Text("Change") }
+            TextButton(onClick = change) { Text(stringResource(R.string.settings_change)) }
         },
         dismissButton = {
             Row {
                 if (!state.usingDefaultFolder) {
-                    TextButton(onClick = useDefault, enabled = !state.busy) { Text("Use default") }
+                    TextButton(onClick = useDefault, enabled = !state.busy) { Text(stringResource(R.string.settings_use_default)) }
                 }
-                TextButton(onClick = dismiss) { Text("Cancel") }
+                TextButton(onClick = dismiss) { Text(stringResource(R.string.settings_cancel)) }
             }
         },
     )
@@ -885,16 +895,17 @@ private fun FileNamesDialog(
     chooseHonorFolder: () -> Unit,
     dismiss: () -> Unit,
 ) {
+    val context = LocalContext.current
     val formats = FileNames.Format.entries.filter {
         it != FileNames.Format.HONOR || state.honorDialer || state.fileNames == FileNames.Format.HONOR
     }
     val needsCallLog = state.fileNames != FileNames.Format.DATE && !state.canReadCallLog
     val needsHonorFolder = state.fileNames == FileNames.Format.HONOR && !state.inHonorFolder
     ChoiceDialog(
-        title = "File names",
+        title = stringResource(R.string.settings_file_names),
         choices = formats,
         selected = state.fileNames,
-        label = ::fileNamesLabel,
+        label = { fileNamesLabel(context, it) },
         detail = { format ->
             val example = when (format) {
                 FileNames.Format.DATE -> "20261020_165705_out.ogg"
@@ -915,33 +926,25 @@ private fun FileNamesDialog(
                 Text(
                     when (state.fileNames) {
                         FileNames.Format.DATE ->
-                            "When the call began, and which way it went."
+                            stringResource(R.string.settings_filename_date_desc)
                         FileNames.Format.DATE_AND_CALLER ->
-                            "The same, then the contact's name or the number - easier " +
-                                "to find in a file manager or on a computer."
+                            stringResource(R.string.settings_filename_caller_desc)
                         FileNames.Format.DATE_AND_NUMBER ->
-                            "The same, then the number with its country code, even a " +
-                                "contact's - for a program that sorts recordings by number. " +
-                                "A hidden number leaves the date and time; a messenger call " +
-                                "has no number, so its name ends with the app."
+                            stringResource(R.string.settings_filename_number_desc)
                         FileNames.Format.HONOR ->
-                            "The name Honor's own recorder uses. Honor's Phone app then " +
-                                "shows a play button on the call in its history - as long " +
-                                "as the recordings are in ${FileNames.HONOR_FOLDER}."
-                    } + " New recordings only: the ones you have keep their names.",
+                            stringResource(R.string.settings_filename_honor_desc, FileNames.HONOR_FOLDER)
+                    } + stringResource(R.string.settings_filename_new_only_suffix),
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 if (needsCallLog) {
                     Text(
-                        "Needs your call log, to know who each call was with. Until " +
-                            "then, recordings are named by date and time.",
+                        stringResource(R.string.settings_filename_needs_call_log),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.error,
                     )
                 } else if (needsHonorFolder) {
                     Text(
-                        "Recordings are not going to ${FileNames.HONOR_FOLDER} yet. " +
-                            "Choose it, then tap Use this folder and Allow.",
+                        stringResource(R.string.settings_filename_honor_folder, FileNames.HONOR_FOLDER),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.error,
                     )
@@ -950,10 +953,10 @@ private fun FileNamesDialog(
         },
         action = when {
             needsCallLog -> {
-                { TextButton(onClick = allow) { Text("Allow") } }
+                { TextButton(onClick = allow) { Text(stringResource(R.string.settings_allow)) } }
             }
             needsHonorFolder -> {
-                { TextButton(onClick = chooseHonorFolder) { Text("Choose the folder") } }
+                { TextButton(onClick = chooseHonorFolder) { Text(stringResource(R.string.settings_choose_folder)) } }
             }
             else -> null
         },
@@ -976,24 +979,23 @@ fun WhoseCallsScreen(
     modifier: Modifier = Modifier,
 ) {
     val haptics = LocalHapticFeedback.current
+    val context = LocalContext.current
 
     Column(modifier) {
         if (!state.canReadCallLog || !state.canReadContacts) {
             Text(
-                "Every call is kept. To leave some out - keep only your contacts' " +
-                    "calls, say, or everyone's but a few people's - JemRec needs to read " +
-                    "your call log and contacts, to tell who a call was with.",
+                stringResource(R.string.settings_whose_needs_permissions),
                 style = MaterialTheme.typography.bodyLarge,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             )
             FilledTonalButton(
                 onClick = { haptics.tap(); askForCallLog() },
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-            ) { Text("Allow") }
+            ) { Text(stringResource(R.string.settings_allow)) }
             return@Column
         }
 
-        val sentence = rulesSentence(state)
+        val sentence = rulesSentence(context, state)
         Text(
             sentence.text,
             style = MaterialTheme.typography.bodyLarge,
@@ -1001,16 +1003,16 @@ fun WhoseCallsScreen(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
         )
 
-        SettingsHeading("Your contacts", top = 8.dp)
+        SettingsHeading(stringResource(R.string.your_contacts), top = 8.dp)
         ConnectedChoices(
             choices = CallRules.Contacts.entries,
             selected = state.ruleContacts,
             label = { contacts ->
                 when (contacts) {
-                    CallRules.Contacts.ALL -> "All"
-                    CallRules.Contacts.ALL_BUT -> "All but"
-                    CallRules.Contacts.ONLY -> "Only"
-                    CallRules.Contacts.NONE -> "None"
+                    CallRules.Contacts.ALL -> context.getString(R.string.all)
+                    CallRules.Contacts.ALL_BUT -> context.getString(R.string.all_but)
+                    CallRules.Contacts.ONLY -> context.getString(R.string.only)
+                    CallRules.Contacts.NONE -> context.getString(R.string.none)
                 }
             },
             onChoose = vm::setRuleContacts,
@@ -1020,10 +1022,10 @@ fun WhoseCallsScreen(
             val leaveOut = state.ruleContacts == CallRules.Contacts.ALL_BUT
             Text(
                 when {
-                    state.ruleChosen.isEmpty() && leaveOut -> "Add the contacts whose calls to leave out."
-                    state.ruleChosen.isEmpty() -> "Add the contacts whose calls to keep."
-                    leaveOut -> "Calls with these contacts are not kept"
-                    else -> "Calls with these contacts are kept"
+                    state.ruleChosen.isEmpty() && leaveOut -> stringResource(R.string.settings_add_contacts_leave_out)
+                    state.ruleChosen.isEmpty() -> stringResource(R.string.settings_add_contacts_keep)
+                    leaveOut -> stringResource(R.string.settings_contacts_not_kept)
+                    else -> stringResource(R.string.settings_contacts_kept)
                 },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1039,7 +1041,10 @@ fun WhoseCallsScreen(
                                 IconButton(
                                     onClick = { haptics.tap(); vm.removeRuleContact(chosen.key) },
                                 ) {
-                                    Icon(Icons.Filled.Close, contentDescription = "Remove ${chosen.name}")
+                                    Icon(
+                                        Icons.Filled.Close,
+                                        contentDescription = stringResource(R.string.settings_remove_contact_cd, chosen.name),
+                                    )
                                 }
                             },
                         )
@@ -1047,7 +1052,7 @@ fun WhoseCallsScreen(
                 }
                 row {
                     SettingsRow(
-                        title = "Add a contact",
+                        title = stringResource(R.string.settings_add_contact),
                         titleColor = MaterialTheme.colorScheme.primary,
                         iconTint = MaterialTheme.colorScheme.primary,
                         icon = Icons.Filled.Person,
@@ -1057,11 +1062,11 @@ fun WhoseCallsScreen(
             }
         }
 
-        SettingsGroup("Everyone else") {
+        SettingsGroup(stringResource(R.string.settings_everyone_else)) {
             row {
                 SwitchRow(
-                    title = "Numbers not in your contacts",
-                    summary = "And hidden numbers",
+                    title = stringResource(R.string.settings_numbers_not_in_contacts),
+                    summary = stringResource(R.string.settings_and_hidden_numbers),
                     checked = state.ruleOtherNumbers,
                     onCheckedChange = vm::setRuleOtherNumbers,
                 )
@@ -1069,13 +1074,10 @@ fun WhoseCallsScreen(
         }
 
         SettingsFooter(
-            "Who a call was with is only known once it ends, from the call log. So " +
-                "every call is recorded, and one left out here is deleted as it " +
-                "ends, before it is saved. If the call log does not say who it was, " +
-                "the recording is kept." +
-                if (state.automatic) "" else {
-                    " In ask-first mode, a call you tap Record on is always kept."
-                },
+            buildString {
+                append(stringResource(R.string.footer_whose_calls))
+                if (!state.automatic) append(stringResource(R.string.footer_whose_ask_first))
+            },
         )
     }
 }
@@ -1087,12 +1089,11 @@ fun WhoseCallsScreen(
  */
 @Composable
 fun MessengerCallsScreen(state: UiState, vm: MainViewModel, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
     Column(modifier) {
         if (!state.voipSupported) {
             Text(
-                "WhatsApp, Telegram, Signal, Viber and Google Meet calls cannot be recorded " +
-                    "on this phone: its Android does not let the recorder copy another app's " +
-                    "call audio. Android allows it from version 14.",
+                stringResource(R.string.messenger_needs_14),
                 style = MaterialTheme.typography.bodyLarge,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             )
@@ -1100,14 +1101,14 @@ fun MessengerCallsScreen(state: UiState, vm: MainViewModel, modifier: Modifier =
         }
         if (state.voipInstalled.isEmpty()) {
             Text(
-                "None of WhatsApp, Telegram, Signal, Viber or Google Meet is on this phone.",
+                stringResource(R.string.settings_no_messenger_installed),
                 style = MaterialTheme.typography.bodyLarge,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             )
             return@Column
         }
 
-        SettingsGroup("Record calls in") {
+        SettingsGroup(stringResource(R.string.settings_record_calls_in)) {
             state.voipInstalled.forEach { app ->
                 row {
                     SwitchRow(
@@ -1121,12 +1122,12 @@ fun MessengerCallsScreen(state: UiState, vm: MainViewModel, modifier: Modifier =
         }
 
         if (state.voipEnabled.isNotEmpty()) {
-            SettingsGroup("Caller names") {
+            SettingsGroup(stringResource(R.string.settings_group_caller_names)) {
                 row {
                     SwitchRow(
-                        title = "Show who called",
-                        summary = state.voipNamesProblem?.let(::grantProblem)
-                            ?: "From each app's call notification",
+                        title = stringResource(R.string.settings_show_who_called),
+                        summary = state.voipNamesProblem?.let { grantProblem(context, it) }
+                            ?: stringResource(R.string.settings_voip_names_default),
                         summaryColor = if (state.voipNamesProblem != null) {
                             MaterialTheme.colorScheme.error
                         } else {
@@ -1141,15 +1142,8 @@ fun MessengerCallsScreen(state: UiState, vm: MainViewModel, modifier: Modifier =
         }
 
         SettingsFooter(
-            "Both sides are recorded, the way phone calls are. Each app is off until " +
-                "you turn it on. An app can refuse to let its calls be recorded, and " +
-                "Android honours that. Their recordings are in Recordings, marked with " +
-                "the app's icon; Whose calls to keep does not apply to them - the switch for " +
-                "each app is the rule.",
-            "These are not phone calls, so JemRec does not look them up in the call " +
-                "log; only the app's own call notification says who it was. Reading it " +
-                "takes notification access, which Android grants to all notifications - " +
-                "JemRec keeps just the caller's name, from these apps' call notifications.",
+            stringResource(R.string.footer_messenger),
+            stringResource(R.string.settings_messenger_footer_notifications),
         )
     }
 }
@@ -1207,17 +1201,16 @@ fun DiagnosticsScreen(state: UiState, vm: MainViewModel, modifier: Modifier = Mo
         SettingsGroup {
             row {
                 SettingsRow(
-                    title = if (state.daemonRunning) "Recorder running" else "Recorder not running",
+                    title = if (state.daemonRunning) stringResource(R.string.settings_recorder_running) else stringResource(R.string.settings_recorder_not_running),
                     titleColor = if (state.daemonRunning) {
                         MaterialTheme.colorScheme.onSurface
                     } else {
                         MaterialTheme.colorScheme.error
                     },
                     summary = if (state.connected) {
-                        "ADB session open. Only needed to start the recorder."
+                        stringResource(R.string.adb_connected_summary)
                     } else {
-                        "No ADB session. Normal - it is only needed to start the " +
-                            "recorder, which then runs without it."
+                        stringResource(R.string.adb_normal_summary)
                     },
                     leading = {
                         StatusDot(if (state.daemonRunning) JemRecColors.play else MaterialTheme.colorScheme.error)
@@ -1228,13 +1221,13 @@ fun DiagnosticsScreen(state: UiState, vm: MainViewModel, modifier: Modifier = Mo
 
         // Two related actions, one language: tonal buttons sharing the row at
         // equal width, not a loud one beside a faint one.
-        ButtonPair(listOf("Self-test", "Start recorder")) { i, modifier ->
+        ButtonPair(listOf(stringResource(R.string.after_self_test), stringResource(R.string.settings_start_recorder))) { i, modifier ->
             if (i == 0) {
                 FilledTonalButton(
                     onClick = { haptics.tap(); vm.selfTest() },
                     enabled = !state.busy,
                     modifier = modifier,
-                ) { ButtonLabel("Self-test") }
+                ) { ButtonLabel(stringResource(R.string.after_self_test)) }
             } else {
                 // Off when there is nothing to start: against a running
                 // recorder it short-circuits on the first ping and reports
@@ -1244,7 +1237,7 @@ fun DiagnosticsScreen(state: UiState, vm: MainViewModel, modifier: Modifier = Mo
                     onClick = { haptics.tap(); vm.bootstrapDaemon() },
                     enabled = !state.busy && !state.daemonRunning,
                     modifier = modifier,
-                ) { ButtonLabel("Start recorder") }
+                ) { ButtonLabel(stringResource(R.string.settings_start_recorder)) }
             }
         }
 
@@ -1253,9 +1246,8 @@ fun DiagnosticsScreen(state: UiState, vm: MainViewModel, modifier: Modifier = Mo
         SettingsGroup {
             row {
                 SettingsRow(
-                    title = "Copy a report",
-                    summary = "This phone and how its last call was recorded, to paste into a report " +
-                        "on GitHub. No numbers or names in it",
+                    title = stringResource(R.string.settings_copy_report),
+                    summary = stringResource(R.string.settings_copy_report_diag),
                     icon = Icons.Filled.Share,
                     onClick = { haptics.tap(); vm.copyCallReport() },
                 )
@@ -1307,22 +1299,19 @@ private fun addTile(context: Context, answered: (Int) -> Unit) {
  * It used to promise the permissions back on every version, and handed back
  * one.
  */
-internal fun startFreshWords(handsBack: Boolean): String {
+internal fun startFreshWords(context: Context, handsBack: Boolean): String {
     val permissions = if (handsBack) {
-        "JemRec will hand back the permissions you allowed, turn Wireless debugging off, "
+        context.getString(R.string.start_fresh_perm_hands_back)
     } else {
-        "JemRec will turn Wireless debugging off, "
+        context.getString(R.string.start_fresh_perm_no_hand)
     }
     val stays = if (handsBack) {
         ""
     } else {
-        "Android 12 does not let an app hand back the permissions you allowed: take them " +
-            "back in Android's settings, App info, Permissions, if you want them gone. "
+        context.getString(R.string.start_fresh_android12)
     }
-    return permissions + "forget its pairing and stop the recorder. Setup starts again " +
-        "from the first step.\n\n" + stays +
-        "What setup granted over debugging - changing settings, and notification access - " +
-        "stays until you uninstall JemRec, which does not use it until you set it up again.\n\n" +
-        "The app will close. Open it again to set it up.\n\n" +
-        "Your recordings are NOT deleted."
+    return permissions + context.getString(R.string.start_fresh_mid) + stays +
+        context.getString(R.string.start_fresh_debug_stays) +
+        context.getString(R.string.start_fresh_close) +
+        context.getString(R.string.start_fresh_recordings_kept)
 }

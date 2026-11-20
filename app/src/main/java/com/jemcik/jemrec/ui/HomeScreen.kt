@@ -42,12 +42,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.jemcik.jemrec.R
 import com.jemcik.jemrec.calls.NotificationHealth
 import com.jemcik.jemrec.recordings.FileNames
 import com.jemcik.jemrec.capture.AudioAccess
@@ -96,7 +99,10 @@ fun HomeScreen(
         AlertDialog(
             onDismissRequest = vm::cancelDeleteSelected,
             title = {
-                Text(if (count == 1) "Delete this recording?" else "Delete $count recordings?")
+                Text(
+                    if (count == 1) stringResource(R.string.home_delete_one)
+                    else stringResource(R.string.home_delete_many, count),
+                )
             },
             text = {
                 // The count again, in the sentence. A number in a title is
@@ -104,21 +110,19 @@ fun HomeScreen(
                 // read - and this is the last point at which it can be read.
                 Text(
                     if (count == 1) {
-                        "It goes to Recently deleted, in Settings, where it can be " +
-                            "restored for ${Trash.DAYS} days."
+                        stringResource(R.string.home_delete_one_body, Trash.DAYS)
                     } else {
-                        "All $count of them go to Recently deleted, in Settings, where " +
-                            "they can be restored for ${Trash.DAYS} days."
-                    }
+                        stringResource(R.string.home_delete_many_body, count, Trash.DAYS)
+                    },
                 )
             },
             confirmButton = {
                 TextButton(
                     onClick = { haptics.confirm(); vm.confirmDeleteSelected() },
-                ) { Text("Delete") }
+                ) { Text(stringResource(R.string.am_delete)) }
             },
             dismissButton = {
-                TextButton(onClick = vm::cancelDeleteSelected) { Text("Cancel") }
+                TextButton(onClick = vm::cancelDeleteSelected) { Text(stringResource(R.string.settings_cancel)) }
             },
         )
     }
@@ -274,15 +278,9 @@ fun HomeScreen(
         if (offer) {
             item {
                 NoticeCard(
-                    title = "Show who called",
-                    text = "JemRec can label each recording with the contact's name " +
-                        "and photo, or the number if they are not in your " +
-                        "contacts. That means permission to read your call log, " +
-                        "which holds the name, and your contacts, which hold " +
-                        "the photo. The call log also lets JemRec tell you if a " +
-                        "call ever goes by unrecorded.\n\nNothing else changes, " +
-                        "and you can say no to either.",
-                    action = "Allow",
+                    title = stringResource(R.string.show_who_called),
+                    text = stringResource(R.string.home_show_who_body),
+                    action = stringResource(R.string.settings_allow),
                     onAction = askForCallLog,
                     onNotNow = vm::dismissCallLogOffer,
                 )
@@ -343,13 +341,13 @@ fun HomeScreen(
                         ) {
                             Icon(
                                 Icons.Filled.Close,
-                                contentDescription = "Cancel selection",
+                                contentDescription = stringResource(R.string.home_cancel_selection),
                                 tint = MaterialTheme.colorScheme.onSurface,
                             )
                         }
                         Text(
-                            if (state.selected.isEmpty()) "Select recordings"
-                            else "${state.selected.size} selected",
+                            if (state.selected.isEmpty()) stringResource(R.string.home_select_recordings)
+                            else stringResource(R.string.home_n_selected, state.selected.size),
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onSurface,
                             // One line in the bar's fixed height, as an app
@@ -363,6 +361,7 @@ fun HomeScreen(
                         // it says what tapping will do and reports what is
                         // already picked, which an icon cannot.
                         val picked = picked(state.selected, shown.map { it.name })
+                        val selectAllLabel = stringResource(R.string.home_select_all)
                         TriStateCheckbox(
                             state = when (picked) {
                                 Picked.NONE -> ToggleableState.Off
@@ -379,7 +378,7 @@ fun HomeScreen(
                             // process ended go (review, 2026-11-18).
                             enabled = !state.listUnread,
                             // Its name, which a checkbox alone does not say.
-                            modifier = Modifier.semantics { contentDescription = "Select all" },
+                            modifier = Modifier.semantics { contentDescription = selectAllLabel },
                         )
                         // Hidden with nothing picked. A delete button that
                         // deletes nothing is a question mark on a toolbar whose
@@ -391,13 +390,19 @@ fun HomeScreen(
                             val allKept = state.recordings
                                 .filter { it.name in state.selected }
                                 .all { it.kept }
+                            val keepLabel = if (allKept) {
+                                stringResource(R.string.home_stop_keeping)
+                            } else {
+                                stringResource(R.string.home_keep_selected)
+                            }
+                            val deleteSelectedLabel = stringResource(R.string.home_delete_selected)
                             IconButton(
                                 onClick = { haptics.tap(); vm.keepSelected() },
                                 modifier = Modifier.offset(x = 12.dp),
                             ) {
                                 Icon(
                                     if (allKept) KeepIcons.NotKept else KeepIcons.Kept,
-                                    contentDescription = if (allKept) "Stop keeping selected" else "Keep selected",
+                                    contentDescription = keepLabel,
                                     tint = MaterialTheme.colorScheme.primary,
                                 )
                             }
@@ -407,7 +412,7 @@ fun HomeScreen(
                             ) {
                                 Icon(
                                     Icons.Filled.Delete,
-                                    contentDescription = "Delete selected",
+                                    contentDescription = deleteSelectedLabel,
                                     tint = JemRecColors.delete,
                                 )
                             }
@@ -449,7 +454,7 @@ fun HomeScreen(
                         )
                     }
                     Text(
-                        "No recordings yet",
+                        stringResource(R.string.home_no_recordings),
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurface,
                     )
@@ -462,9 +467,9 @@ fun HomeScreen(
                     if (!state.canReadAudio) {
                         // Conditional: on a first install there is nothing from
                         // before, and saying there is would be false.
+                        val context = LocalContext.current
                         Text(
-                            "If JemRec was installed on this phone before, the calls " +
-                                "it recorded then are still here. " + AudioAccess.askFor,
+                            stringResource(R.string.home_audio_reinstall, AudioAccess.askFor(context)),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center,
@@ -474,21 +479,18 @@ fun HomeScreen(
                                 haptics.tap()
                                 audioPermission.launch(AudioAccess.PERMISSIONS)
                             },
-                        ) { Text("Allow") }
+                        ) { Text(stringResource(R.string.settings_allow)) }
                     }
                 }
             }
         } else if (shown.isEmpty() && !state.listUnread) {
             item {
                 NoMatches(
-                    if (narrowing.messages) {
-                        "No messages match."
-                    } else if (narrowing.kept) {
-                        "No kept recordings match."
-                    } else if (narrowing.favorites) {
-                        "No starred recordings match."
-                    } else {
-                        "No recordings match your search or filter."
+                    when {
+                        narrowing.messages -> stringResource(R.string.home_no_messages_match)
+                        narrowing.kept -> stringResource(R.string.home_no_kept_match)
+                        narrowing.favorites -> stringResource(R.string.home_no_starred_match)
+                        else -> stringResource(R.string.home_no_match)
                     },
                 )
             }
@@ -529,7 +531,7 @@ fun HomeScreen(
 @Composable
 private fun SelectTip(onDismiss: () -> Unit) {
     TipCard(
-        "Tap a photo, or press and hold a call, to select recordings",
+        stringResource(R.string.home_select_tip),
         modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 12.dp),
         onDismiss = onDismiss,
     )
@@ -565,36 +567,21 @@ private fun placeInList(name: String, cards: Int, tip: Boolean, days: List<Pair<
  *  notice off, where that leaves no call unrecorded (NotificationHealth). */
 @Composable
 private fun NotificationsOffCard(off: NotificationHealth.Off, askFirst: Boolean, onTurnOn: () -> Unit, onNotNow: () -> Unit) {
-    val (title, text) = when (off) {
-        NotificationHealth.Off.ALL -> "Notifications are off" to if (askFirst) {
-            "Ask first asks whether to record each call in a notification, so while " +
-                "JemRec's notifications are off, no call is recorded. Nor can it tell " +
-                "you when something stops it recording."
+    val (titleRes, textRes) = when (off) {
+        NotificationHealth.Off.ALL -> if (askFirst) {
+            R.string.notif_off_all_title to R.string.notif_off_all_body_ask
         } else {
-            "JemRec still records your calls, but cannot tell you anything: not that a " +
-                "call was recorded, and not when something stops it recording."
+            R.string.notif_off_all_title to R.string.notif_off_all_body_auto
         }
-        NotificationHealth.Off.ASK_FIRST -> "Ask first cannot ask" to
-            "Its question, \"Record this call?\", comes as a notification, and that " +
-            "notification is off in Android's settings - so no call is being recorded."
-        NotificationHealth.Off.ASK_FIRST_QUIET -> "Ask first's question will not pop up" to
-            "\"Record this call?\" is set not to pop up in Android's settings, so during " +
-            "a call it waits in the notification shade, easy to miss - and a call it " +
-            "is not answered for is not recorded."
-        NotificationHealth.Off.ASK_FIRST_BRIEF -> "Ask first's question will not stay up" to
-            "JemRec's full-screen notifications are off in Android's settings, so " +
-            "during a call \"Record this call?\" stays on screen for a minute rather " +
-            "than until you answer it, then waits in the notification shade, easy " +
-            "to miss."
-        NotificationHealth.Off.PROBLEMS -> "Problem alerts are off" to
-            "If a call goes unrecorded, or something stops JemRec recording, it " +
-            "cannot tell you: its \"Recording problems\" notifications are off in " +
-            "Android's settings."
+        NotificationHealth.Off.ASK_FIRST -> R.string.notif_off_ask_first_title to R.string.notif_off_ask_first_body
+        NotificationHealth.Off.ASK_FIRST_QUIET -> R.string.notif_off_ask_quiet_title to R.string.notif_off_ask_quiet_body
+        NotificationHealth.Off.ASK_FIRST_BRIEF -> R.string.notif_off_ask_brief_title to R.string.notif_off_ask_brief_body
+        NotificationHealth.Off.PROBLEMS -> R.string.notif_off_problems_title to R.string.notif_off_problems_body
     }
     NoticeCard(
-        title = title,
-        text = text,
-        action = "Turn on",
+        title = stringResource(titleRes),
+        text = stringResource(textRes),
+        action = stringResource(R.string.home_turn_on),
         onAction = onTurnOn,
         onNotNow = if (NotificationHealth.dismissable(off, askFirst)) onNotNow else null,
     )
@@ -607,11 +594,15 @@ private fun NotificationsOffCard(off: NotificationHealth.Off, askFirst: Boolean,
 @Composable
 private fun BatteryRestrictedCard(askFirst: Boolean, trackingOff: Boolean, onOpen: () -> Unit, onNotNow: () -> Unit) {
     NoticeCard(
-        title = com.jemcik.jemrec.system.BatteryHealth.TITLE,
+        title = stringResource(R.string.battery_title),
         // App info names its page "App battery usage" (Android 17 AVD, whose
         // page has "Allow background usage"), "Battery" before.
-        text = com.jemcik.jemrec.system.BatteryHealth.words(askFirst, trackingOff),
-        action = "Open App info",
+        text = com.jemcik.jemrec.system.BatteryHealth.words(
+            androidx.compose.ui.platform.LocalContext.current,
+            askFirst,
+            trackingOff,
+        ),
+        action = stringResource(R.string.home_open_app_info),
         onAction = onOpen,
         onNotNow = if (com.jemcik.jemrec.system.BatteryHealth.dismissable(askFirst)) onNotNow else null,
     )
@@ -622,19 +613,22 @@ private fun BatteryRestrictedCard(askFirst: Boolean, trackingOff: Boolean, onOpe
 @Composable
 private fun FolderLostCard(state: UiState, choose: () -> Unit, useStandard: () -> Unit) {
     val honor = if (state.fileNames == FileNames.Format.HONOR) {
-        " Honor's Phone app plays only recordings in Sounds/CallRecord."
+        stringResource(R.string.home_folder_honor_suffix)
     } else {
         ""
     }
     NoticeCard(
-        title = "Your recordings folder cannot be reached",
-        text = "JemRec can no longer reach ${RecordingStore.chosenWords(state.folder)} - " +
-            "${com.jemcik.jemrec.recordings.FolderAccess.WHY_LOST}. New recordings go to the standard " +
-            "Recordings folder until you choose it again, and the ones in it do not show here.$honor",
-        action = "Choose again",
+        title = stringResource(R.string.home_folder_unreachable),
+        text = stringResource(
+            R.string.home_folder_lost_body,
+            RecordingStore.chosenWords(state.folder),
+            stringResource(R.string.home_folder_why_lost),
+            honor,
+        ),
+        action = stringResource(R.string.home_choose_again),
         onAction = choose,
         onNotNow = useStandard,
-        notNow = "Use the standard folder",
+        notNow = stringResource(R.string.home_use_standard),
         // As the Settings folder dialog's Use default: dropped while the screen
         // is busy, so greyed. Choose again stays live: the folder picked is
         // taken at once (FOLDER_CHOSEN bypasses the busy screen).

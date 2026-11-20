@@ -144,14 +144,14 @@ class BatteryHealthTest {
      *  share: "some" said for tracking off passed (review, 2026-11-18). */
     @Test fun itsWordsFollowTheModeAndTracking() {
         val cost = { askFirst: Boolean, trackingOff: Boolean ->
-            BatteryHealth.words(askFirst, trackingOff).substringAfter("missing calls meanwhile, and ").substringBefore(".")
+            BatteryHealth.words(app, askFirst, trackingOff).substringAfter("missing calls meanwhile, and ").substringBefore(".")
         }
         assertEquals("no call can be asked about, so none is recorded", cost(true, true))
         assertEquals("calls it cannot ask about are not recorded", cost(true, false))
         assertEquals("every call is saved only when you open it", cost(false, true))
         assertEquals("some calls are saved only when you open it", cost(false, false))
         for (askFirst in listOf(true, false)) for (off in listOf(true, false)) {
-            assertTrue(BatteryHealth.words(askFirst, off).contains("may stay stopped until you open JemRec"))
+            assertTrue(BatteryHealth.words(app, askFirst, off).contains("may stay stopped until you open JemRec"))
         }
     }
 

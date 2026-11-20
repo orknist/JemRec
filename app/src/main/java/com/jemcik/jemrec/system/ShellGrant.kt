@@ -1,5 +1,8 @@
 package com.jemcik.jemrec.system
 
+import android.content.Context
+import androidx.annotation.StringRes
+import com.jemcik.jemrec.R
 
 /**
  * Whether setup's `pm grant` gave JemRec WRITE_SECURE_SETTINGS, and when it
@@ -123,39 +126,24 @@ internal object ShellGrant {
      *  "false" there says the switch is on. */
     internal fun switchMayBeOff(property: String?): Boolean = monitoring(property) != false
 
-    /**
-     * The switch, as every card that names it says it. Some builds label it
-     * just Permission monitoring, on by default, to be turned off - Shizuku's
-     * guide says 'Disable "Permission monitoring"', and Octoclip's notes give
-     * ColorOS in Chinese that label - so that wording is named too.
-     */
-    const val SWITCH = "Disable system optimization, at the end of the Apps section " +
-        "(on older phones: Disable permission monitoring; where it says just Permission " +
-        "monitoring, turn that off instead). Not there? Set the phone's language to " +
-        "English, turn it on, then set the language back"
+    @StringRes
+    fun switchRes(): Int = R.string.shell_grant_switch
+
+    fun switchText(context: Context): String = context.getString(switchRes())
 
     /** Why setup did not finish, and what to do. [monitoring]: see [monitoring]. */
-    fun advice(outcome: Outcome, skin: DeviceSkin, monitoring: Boolean?): String {
-        val what = if (outcome == Outcome.REFUSED) {
-            "Android would not let JemRec change debugging settings."
-        } else {
-            "Android did not give JemRec the permission to change debugging settings, and did not say why."
-        }
+    fun advice(context: Context, outcome: Outcome, skin: DeviceSkin, monitoring: Boolean?): String {
+        val what = context.getString(
+            if (outcome == Outcome.REFUSED) R.string.shell_would_not_change else R.string.shell_no_permission,
+        )
         val todo = when {
             monitoring == true || (monitoring == null && skin == DeviceSkin.OPLUS) ->
-                "This phone needs one more switch on first. In Developer options, turn on $SWITCH. " +
-                    "Then tap Try again, and leave it that way afterwards."
-            // The switch is on and the grant still did not take. A restart is
-            // a guess, unmeasured: what else could hold the old answer.
+                context.getString(R.string.shell_turn_on_switch, context.getString(switchRes()))
             monitoring == false ->
-                "The switch for it in Developer options is already set, so restart the phone, " +
-                    "then open JemRec on Wi-Fi and tap Try again."
-            skin == DeviceSkin.XIAOMI ->
-                "Turn on \"USB debugging (Security settings)\" in Developer options, then tap Try again."
-            else ->
-                "Some phones keep a switch for it in Developer options: Disable system optimization " +
-                    "or Disable permission monitoring on OPPO, OnePlus and realme, \"USB debugging " +
-                    "(Security settings)\" on Xiaomi. Turn on the one this phone has, then tap Try again."
+                context.getString(R.string.shell_restart_phone) +
+                    context.getString(R.string.shell_restart_phone_tail)
+            skin == DeviceSkin.XIAOMI -> context.getString(R.string.shell_usb_security)
+            else -> context.getString(R.string.shell_try_either_switch)
         }
         return "$what $todo"
     }

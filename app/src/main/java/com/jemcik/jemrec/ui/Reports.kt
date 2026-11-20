@@ -5,6 +5,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.os.Build
 import android.widget.Toast
+import com.jemcik.jemrec.R
 
 /**
  * A report onto the clipboard, for every Copy a report. From Android 13 the
@@ -17,7 +18,7 @@ import android.widget.Toast
 internal fun reportToClipboard(context: Context, label: String, text: String) {
     context.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText(label, text))
     if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.S_V2) {
-        Toast.makeText(context, "Report copied", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, context.getString(R.string.report_copied), Toast.LENGTH_SHORT).show()
     }
 }
 

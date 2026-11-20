@@ -32,11 +32,13 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.jemcik.jemrec.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -69,6 +71,7 @@ internal fun SelectableAvatar(
         animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
         label = "avatarFlip",
     )
+    val unknownCaller = stringResource(R.string.unknown_caller)
     Box(
         modifier = Modifier
             .size(size)
@@ -90,7 +93,7 @@ internal fun SelectableAvatar(
             // And named: what it shows - a photo, initials, a person - says
             // nothing to a screen reader, which read "Not checked, checkbox"
             // alone (Android's "Label elements"; review, 2026-11-18).
-            .semantics { contentDescription = caller ?: "Unknown caller" },
+            .semantics { contentDescription = caller ?: unknownCaller },
         contentAlignment = Alignment.Center,
     ) {
         if (rotation <= 90f) {

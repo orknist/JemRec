@@ -1,8 +1,12 @@
 package com.jemcik.jemrec.capture
 
+import androidx.annotation.StringRes
+import com.jemcik.jemrec.R
+
 /**
  * What the call service's own notification says (CallMonitorService), from
- * what the service knows at that moment. Pure.
+ * what the service knows at that moment. Pure — words are resource ids, resolved
+ * in the service with [android.content.Context.getString].
  */
 internal object CallNotice {
 
@@ -26,8 +30,8 @@ internal object CallNotice {
     )
 
     data class Notice(
-        val title: String,
-        val text: String,
+        @StringRes val titleRes: Int,
+        @StringRes val textRes: Int,
         /** Shown after Android's ten seconds, if still up, rather than at once. */
         val deferred: Boolean,
         /** The ticket Talk to them and Hang up carry; no buttons without one. */
@@ -57,19 +61,19 @@ internal object CallNotice {
         // says what it is doing about THIS call. "Recording call" while it
         // records; "Call in progress" in the gap before recording starts, or
         // while the mid-call prompt waits for an answer in on-demand mode.
-        val (title, text) = when {
-            warningWake -> "Checking JemRec" to "Making sure it keeps running"
-            cableOnly -> "Checking the recorder" to "A USB cable went in or came out"
-            ticket != null && s.testing -> "Testing the answering machine" to "Your greeting is playing to the caller"
-            ticket != null -> "Taking a message" to "Your greeting is playing; your microphone is muted"
+        val (titleRes, textRes) = when {
+            warningWake -> R.string.notice_checking_jemrec to R.string.notice_keeps_running
+            cableOnly -> R.string.notice_checking_recorder to R.string.notice_usb_cable
+            ticket != null && s.testing -> R.string.notice_testing_am to R.string.notice_testing_am_body
+            ticket != null -> R.string.notice_taking_message to R.string.notice_taking_message_body
             s.recording && s.stopped == Stopped.TRYING ->
-                "Recording stopped" to "Trying again - this part of the call is not recorded"
+                R.string.notice_rec_stopped to R.string.notice_trying_again
             s.recording && s.stopped == Stopped.FOR_GOOD ->
-                "Recording stopped" to "The rest of this call is not recorded"
-            s.recording -> "Recording call" to "Saving this call"
-            s.notRecording -> "Not recording this call" to "Tap to see why"
-            else -> "Call in progress" to "JemRec is handling this call"
+                R.string.notice_rec_stopped to R.string.notice_not_recorded_rest
+            s.recording -> R.string.notice_recording_call to R.string.notice_saving
+            s.notRecording -> R.string.notice_not_recording to R.string.notice_tap_why
+            else -> R.string.notice_call_progress to R.string.notice_handling
         }
-        return Notice(title, text, deferred = cableOnly || warningWake, buttonTicket = ticket)
+        return Notice(titleRes, textRes, deferred = cableOnly || warningWake, buttonTicket = ticket)
     }
 }

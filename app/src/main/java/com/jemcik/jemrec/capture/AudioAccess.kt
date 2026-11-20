@@ -4,6 +4,8 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
+import androidx.annotation.StringRes
+import com.jemcik.jemrec.R
 
 /**
  * Permission to see recordings this app made and no longer owns.
@@ -34,18 +36,22 @@ object AudioAccess {
             arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
         }
 
+    /** Which string says what the permission card asks for (see [askFor]). */
+    @StringRes
+    fun askForRes(): Int =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            R.string.home_audio_access_13
+        } else {
+            R.string.home_audio_access_12
+        }
+
     /**
      * What the card asks to be allowed, in the words of Android's own
      * question after it: "music and audio" from 13, "photos and media" on 12
      * (both read off the emulators' dialogs, 2026-10-24) - with why it is
      * more than audio there.
      */
-    val askFor: String =
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            "Allow access to audio files to show them."
-        } else {
-            "Allow access to photos and media to show them: Android 12 has no choice for audio alone."
-        }
+    fun askFor(context: Context): String = context.getString(askForRes())
 
     /** True when there is nothing left to ask for - including having nothing to ask. */
     fun granted(context: Context): Boolean =

@@ -402,6 +402,10 @@ internal fun schemeFor(look: Look, dark: Boolean): ColorScheme = when (look) {
  * 2026-10-23 only each look's own pieces had its type, and whatever used
  * Material's styles was in the phone's font in every look: the user found
  * Deck's names and its Recordings and Calls keys in it.
+ *
+ * Deck uses JetBrains Mono for the engraved face in every language: Share Tech
+ * Mono has no ğşĞŞİ (cmap, 2026-11-20), and switching face by locale only for
+ * Turkish was needless when the two monos look close enough (2026-11-20).
  */
 internal fun typographyFor(look: Look): Typography = when (look) {
     Look.MEMO -> Typography()
@@ -409,9 +413,14 @@ internal fun typographyFor(look: Look): Typography = when (look) {
     // mono one, every letter already as wide as an m, it spread names out
     // ("O l i v i a") and put "Exact call tracking" on two lines. Deck's own
     // styles never added any.
-    Look.DECK -> Typography().inFamilies(names = LookFonts.engraved, rest = LookFonts.engraved, spacing = 0.sp)
+    Look.DECK -> Typography().inFamilies(names = LookFonts.mono, rest = LookFonts.mono, spacing = 0.sp)
     Look.MULTITRACK -> Typography().inFamilies(names = LookFonts.grotesk, rest = LookFonts.mono)
 }
+
+/** Deck's engraved face: JetBrains Mono (Share Tech Mono lacks Turkish letters). */
+@Composable
+@ReadOnlyComposable
+internal fun deckFace(): FontFamily = LookFonts.mono
 
 /** Each look's monospace, for what is set as code - the Diagnostics log, a
  *  file name's example: the phone's in Memo, Deck's engraved face,
@@ -420,7 +429,7 @@ internal fun typographyFor(look: Look): Typography = when (look) {
 @ReadOnlyComposable
 internal fun lookMono(): FontFamily = when (LocalLook.current) {
     Look.MEMO -> FontFamily.Monospace
-    Look.DECK -> LookFonts.engraved
+    Look.DECK -> LookFonts.mono
     Look.MULTITRACK -> LookFonts.mono
 }
 
@@ -461,6 +470,10 @@ fun JemRecTheme(choice: LookChoice = LookChoice(), content: @Composable () -> Un
         LightDark.DARK -> true
     }
     CompositionLocalProvider(LocalDark provides dark, LocalLook provides choice.look, LocalLookChoice provides choice) {
-        MaterialTheme(colorScheme = schemeFor(choice.look, dark), typography = typographyFor(choice.look), content = content)
+        MaterialTheme(
+            colorScheme = schemeFor(choice.look, dark),
+            typography = typographyFor(choice.look),
+            content = content,
+        )
     }
 }

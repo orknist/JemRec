@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import com.jemcik.jemrec.R
 import com.jemcik.jemrec.audio.Transcoder
 import com.jemcik.jemrec.playback.BothEarsSetting
 import com.jemcik.jemrec.recordings.AppRecordings
@@ -107,7 +108,7 @@ internal class Sharing(
             .setType(mime)
             .putExtra(Intent.EXTRA_STREAM, uri)
             .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        val chooser = Intent.createChooser(intent, "Share recording")
+        val chooser = Intent.createChooser(intent, app.getString(R.string.share_title))
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         runCatching { app.startActivity(chooser) }
             .onFailure { log.tell("could not share that recording") }

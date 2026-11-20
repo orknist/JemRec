@@ -47,6 +47,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
@@ -58,6 +59,7 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.jemcik.jemrec.DeepLink
+import com.jemcik.jemrec.R
 import com.jemcik.jemrec.calls.CallLogLookup
 import com.jemcik.jemrec.capture.CaptureDaemon
 import com.jemcik.jemrec.recordings.RecordingLibrary
@@ -508,16 +510,18 @@ internal fun AppHeader(state: UiState, vm: MainViewModel, panel: (@Composable ()
         return
     }
     SettingsBar(
-        title = when (state.screen) {
-            Screen.WHOSE_CALLS -> "Whose calls to keep"
-            Screen.MESSENGER_CALLS -> "Messenger calls"
-            Screen.DIAGNOSTICS -> "Diagnostics"
-            Screen.ANSWERING_MACHINE -> "Answering machine"
-            Screen.TRASH -> "Recently deleted"
-            Screen.THEME -> "Theme"
-            Screen.WHEN_OFF -> "When JemRec is off"
-            else -> "Settings"
-        },
+        title = stringResource(
+            when (state.screen) {
+                Screen.WHOSE_CALLS -> R.string.screen_whose_calls
+                Screen.MESSENGER_CALLS -> R.string.screen_messenger_calls
+                Screen.DIAGNOSTICS -> R.string.screen_diagnostics
+                Screen.ANSWERING_MACHINE -> R.string.screen_answering_machine
+                Screen.TRASH -> R.string.screen_trash
+                Screen.THEME -> R.string.screen_theme
+                Screen.WHEN_OFF -> R.string.screen_when_off
+                else -> R.string.screen_settings
+            },
+        ),
         busy = state.busy,
         onBack = { haptics.tap(); vm.back() },
     )

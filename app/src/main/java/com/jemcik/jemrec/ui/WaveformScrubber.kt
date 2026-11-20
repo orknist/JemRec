@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.progressBarRangeInfo
@@ -32,6 +33,7 @@ import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import com.jemcik.jemrec.R
 import com.jemcik.jemrec.recordings.Waveforms
 import kotlin.math.abs
 import kotlin.math.max
@@ -69,6 +71,7 @@ internal fun WaveformScrubber(
     positionNow: () -> Int? = { null },
 ) {
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+    val positionInRecording = stringResource(R.string.position_in_the_recording)
     val duration by rememberUpdatedState(durationMs)
     val drag by rememberUpdatedState(onDrag)
     val seek by rememberUpdatedState(onSeek)
@@ -157,7 +160,7 @@ internal fun WaveformScrubber(
                 )
             }
             .semantics {
-                contentDescription = "Position in the recording"
+                contentDescription = positionInRecording
                 stateDescription = "${clock(position)} of ${clock(durationMs)}"
                 progressBarRangeInfo = ProgressBarRangeInfo(position.toFloat(), 0f..max(1, durationMs).toFloat())
                 setProgress { target ->

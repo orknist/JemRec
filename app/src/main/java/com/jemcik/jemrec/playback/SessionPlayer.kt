@@ -39,7 +39,7 @@ internal interface FocusHolder {
  *
  * One recording at a time: setting another replaces it. Its end rewinds to
  * the start, paused, ready to play again - as the row's player did before.
- * [locked] swaps the caller's name for PlaybackRules.LOCKED_TITLE.
+ * [locked] swaps the caller's name for [lockedTitle].
  *
  * SimpleBasePlayer is Media3's unstable API: it may change between Media3
  * versions, so the version is pinned (app/build.gradle.kts) and an update
@@ -57,6 +57,8 @@ internal class SessionPlayer(
      *  The session's Play then does nothing - the notification has no word to
      *  give; the app's own Play says why (Playback.play). */
     private val mayPlay: () -> Boolean = { !Greeting.takeListening },
+    /** Lock-screen title when [locked] (localised "Call recording"). */
+    private val lockedTitle: () -> String = { "Call recording" },
 ) : SimpleBasePlayer(looper) {
 
     private var item: MediaItem? = null
@@ -126,7 +128,7 @@ internal class SessionPlayer(
 
     private fun shown(metadata: MediaMetadata): MediaMetadata {
         val unlocked = PlaybackRules.Titles(metadata.title?.toString().orEmpty(), metadata.artist?.toString())
-        val titles = PlaybackRules.shown(unlocked, locked)
+        val titles = PlaybackRules.shown(unlocked, locked, lockedTitle())
         return MediaMetadata.Builder().setTitle(titles.title).setArtist(titles.subtitle).build()
     }
 

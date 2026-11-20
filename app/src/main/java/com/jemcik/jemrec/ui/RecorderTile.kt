@@ -9,6 +9,7 @@ import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import androidx.core.content.edit
 import com.jemcik.jemrec.DeepLink
+import com.jemcik.jemrec.R
 import com.jemcik.jemrec.Prefs
 import com.jemcik.jemrec.TurnOffQuestionActivity
 import com.jemcik.jemrec.recorder.DebugSwitchesOff
@@ -118,16 +119,16 @@ class RecorderTile : TileService() {
     private fun show(on: Boolean, debuggingOff: Boolean = DebugSwitchesOff.recorderGone(this)) {
         val tile = qsTile ?: return
         tile.state = if (on) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
-        tile.label = "JemRec"
+        tile.label = getString(R.string.app_name)
         tile.subtitle = when {
-            on -> "Recording calls"
-            debuggingOff -> "Off, debugging off"
-            else -> "Off"
+            on -> getString(R.string.tile_recording_calls)
+            debuggingOff -> getString(R.string.tile_off_debugging_off)
+            else -> getString(R.string.am_off)
         }
         tile.contentDescription = when {
-            on -> "JemRec, recording calls"
-            debuggingOff -> "JemRec, off, with debugging off"
-            else -> "JemRec, off"
+            on -> getString(R.string.tile_cd_recording)
+            debuggingOff -> getString(R.string.tile_cd_off_debug)
+            else -> getString(R.string.tile_cd_off)
         }
         tile.updateTile()
     }

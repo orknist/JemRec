@@ -676,7 +676,7 @@ object Setup {
                 val property = if (ShellGrant.actAsRefused) "true"
                 else AdbTransport.exec("getprop ${ShellGrant.MONITORING_PROPERTY}").getOrNull()
                 Log.i(TAG, "setup: ${ShellGrant.MONITORING_PROPERTY}=[${property?.trim()}]")
-                error(ShellGrant.advice(outcome, DeviceSkin.current(), ShellGrant.monitoring(property)))
+                error(ShellGrant.advice(context, outcome, DeviceSkin.current(), ShellGrant.monitoring(property)))
             }
         }
 

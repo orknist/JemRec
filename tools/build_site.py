@@ -15,6 +15,7 @@ import pathlib
 import re
 import shutil
 import textwrap
+import xml.etree.ElementTree as ET
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 DOCS = ROOT / "docs"
@@ -2662,14 +2663,32 @@ _STEP = re.compile(r"Step (\d+) — (.*)")
 
 
 @functools.cache
+def _strings_en() -> dict[str, str]:
+    """Default (English) string resources: name → text, unescaped for the page."""
+    root = ET.parse(ROOT / "app/src/main/res/values/strings.xml").getroot()
+    out = {}
+    for e in root.findall("string"):
+        name = e.attrib["name"]
+        raw = "".join(e.itertext()) if e.text is not None or list(e) else (e.text or "")
+        # Android XML stores \' for apostrophe.
+        out[name] = raw.replace("\\'", "'").replace('\\"', '"')
+    return out
+
+
+@functools.cache
 def header_words() -> dict:
     """Each look's home header, in the app's own words: the state
     (RecorderStatus) and the line under it (Instruction), read from the three
     header files. The manual's table of what the header says was written by
     hand and had drifted - it gave "Cannot record, needs Wi-Fi" where the
     phone says "Join any Wi-Fi to resume" - and Deck and Multitrack say it
-    differently again."""
+    differently again.
+
+    Words live in strings.xml now (phone locale); the Kotlin maps each
+    status/instruction to R.string.* - this follows those maps and resolves
+    the English default, so the manual stays in step with the app."""
     ui = ROOT / "app/src/main/java/com/jemcik/jemrec/ui"
+    strings = _strings_en()
     want = {"READY", "STARTING", "CHECKING", "OFF", "CANNOT", "SWITCH_ON", "SWITCH_ON_OVER_WIFI",
             "ALLOW_WIFI", "JOIN_WIFI", "PAIR_AGAIN", "START_AGAIN", "TURN_ON_NOTIFICATIONS",
             "ALLOW_BACKGROUND"}
@@ -2677,26 +2696,44 @@ def header_words() -> dict:
     # The lines that are a tap: the Instruction entries that carry one
     # (HeaderFacts.kt), which Memo draws in its primary colour.
     facts = (ui / "HeaderFacts.kt").read_text()
-    enum = facts[facts.index("enum class Instruction"):]
-    out["taps"] = set(re.findall(r'^\s*(\w+)\("[^"]+"[,)]', enum[:enum.index("}")], re.M))
+    enum = facts[facts.index("enum class Instruction"):facts.index("}", facts.index("enum class Instruction")) + 1]
+    # A tap is an Instruction that carries tapRes (R.string.…), which Memo
+    # draws in its primary colour. Entries with no args are not taps.
+    out["taps"] = set(
+        re.findall(r'^\s*(\w+)\(\s*R\.string\.\w+', enum, re.M)
+    )
     # The ones that mean Ask first cannot ask (Instruction.cannotAsk), which
     # Multitrack words apart: read here, so a new one cannot drift.
-    out["cannot_ask"] = set(re.findall(r'^\s*(\w+)\([^)]*cannotAsk = true', enum[:enum.index("}")], re.M))
+    out["cannot_ask"] = set(re.findall(r'^\s*(\w+)\([^)]*cannotAsk\s*=\s*true', enum, re.M))
     assert out["cannot_ask"] <= want, f"HeaderFacts.kt: unknown cannotAsk {out['cannot_ask'] - want}"
     assert out["taps"] <= want, f"HeaderFacts.kt: unknown taps {out['taps'] - want}"
+
+    def resolve(res_name: str) -> str:
+        assert res_name in strings, f"missing string resource {res_name}"
+        return html.escape(strings[res_name], quote=False)
+
+    # status/instruction -> stringResource(R.string.x) or getString(R.string.x)
+    arrow = re.compile(
+        r'(?:RecorderStatus|Instruction)\.(\w+)\s*->\s*'
+        r'(?:stringResource|context\.getString)\(R\.string\.(\w+)\)'
+    )
     for look, file in (("memo", "MemoHeader.kt"), ("deck", "DeckHeader.kt"),
                        ("multitrack", "MultitrackHeader.kt")):
         words: dict = {}
         text = (ui / file).read_text()
-        for key, word in re.findall(r'(?:RecorderStatus|Instruction)\.(\w+) -> "([^"]+)"', text):
-            words.setdefault(key, html.escape(word, quote=False))
-        # A look that names Ask first unable to ask apart from a recorder down
-        # (MultitrackHeader.multitrackWord):
-        # `RecorderStatus.CANNOT -> if (instruction?.cannotAsk == true) "CAN'T ASK" else "NO LINK"`.
-        both = re.search(r'RecorderStatus\.CANNOT -> if \(instruction\?\.cannotAsk == true\) "([^"]+)" else "([^"]+)"', text)
+        for key, res in arrow.findall(text):
+            words.setdefault(key, resolve(res))
+        # Multitrack names Ask first unable to ask apart from a recorder down:
+        # getString(R.string.mt_cant_ask) / mt_no_link inside the CANNOT branch.
+        both = re.search(
+            r'RecorderStatus\.CANNOT\s*->\s*if\s*\(instruction\?\.cannotAsk\s*==\s*true\)\s*\{?\s*'
+            r'context\.getString\(R\.string\.(\w+)\)\s*\}?\s*else\s*\{?\s*'
+            r'context\.getString\(R\.string\.(\w+)\)',
+            text,
+        )
         if both:
-            words["CANNOT_ASK"] = html.escape(both.group(1), quote=False)
-            words["CANNOT"] = html.escape(both.group(2), quote=False)
+            words["CANNOT_ASK"] = resolve(both.group(1))
+            words["CANNOT"] = resolve(both.group(2))
         assert want <= set(words), f"{file}: no words for {sorted(want - set(words))}"
         out[look] = words
     return out
@@ -3429,6 +3466,9 @@ PRIVACY_POINTS = [
 ]
 
 FAQ = [
+    ("What languages does JemRec speak?",
+     "The app follows the phone&rsquo;s language: English, Turkish or Ukrainian; "
+     "any other language shows English. There is no in-app language setting."),
     ("Does it really record both sides?",
      "Yes, where the phone&rsquo;s audio hardware hands both sides over &mdash; "
      "which it did on every phone above. The Self-test tells you for yours in "

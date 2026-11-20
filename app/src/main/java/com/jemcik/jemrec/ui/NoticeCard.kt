@@ -13,9 +13,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import com.jemcik.jemrec.R
 
 /**
  * A card above the recordings that asks for something: a title, what it is
@@ -32,7 +34,7 @@ internal fun NoticeCard(
     onAction: () -> Unit,
     onNotNow: (() -> Unit)?,
     modifier: Modifier = Modifier,
-    notNow: String = "Not now",
+    notNow: String? = null,
     /** False while the screen is busy, for a way out whose action waits for
      *  nothing and is dropped meanwhile: greyed, as the busy table has it
      *  (ARCHITECTURE, A tap while the app is checking). The action itself
@@ -40,6 +42,7 @@ internal fun NoticeCard(
     notNowEnabled: Boolean = true,
 ) {
     val haptics: HapticFeedback = LocalHapticFeedback.current
+    val notNowLabel = notNow ?: stringResource(R.string.not_now)
     Card(modifier.padding(horizontal = 16.dp).padding(top = 16.dp, bottom = 16.dp)) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
@@ -54,7 +57,7 @@ internal fun NoticeCard(
             ) {
                 FilledTonalButton(onClick = { haptics.tap(); onAction() }) { Text(action) }
                 if (onNotNow != null) {
-                    TextButton(onClick = { haptics.tap(); onNotNow() }, enabled = notNowEnabled) { Text(notNow) }
+                    TextButton(onClick = { haptics.tap(); onNotNow() }, enabled = notNowEnabled) { Text(notNowLabel) }
                 }
             }
         }

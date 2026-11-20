@@ -27,6 +27,8 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.Placeable
 import androidx.compose.ui.layout.layoutId
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -38,10 +40,12 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
+import com.jemcik.jemrec.R
 import com.jemcik.jemrec.minutesSeconds
 import com.jemcik.jemrec.ui.theme.LocalLook
 import com.jemcik.jemrec.ui.theme.Look
 import com.jemcik.jemrec.ui.theme.LookFonts
+import com.jemcik.jemrec.ui.theme.deckFace
 import com.jemcik.jemrec.ui.theme.multitrackColors
 
 /**
@@ -130,7 +134,7 @@ internal fun NoMatches(why: String) {
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Text(
-            "No matches",
+            stringResource(R.string.no_matches),
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurface,
         )
@@ -153,23 +157,32 @@ internal fun NoMatches(why: String) {
 @Composable
 internal fun DayHeading(day: Day, count: Int, calls: Boolean = false) {
     // Heard with what it counts: "Today, 3" said nothing of what the 3 was.
-    val said = "$count ${if (calls) "call" else "recording"}${if (count == 1) "" else "s"}"
+    val title = stringResource(day.titleRes)
+    val said = pluralStringResource(
+        if (calls) R.plurals.day_heading_calls else R.plurals.day_heading_recordings,
+        count,
+        count,
+    )
     when (LocalLook.current) {
         Look.MEMO -> LookHeading(
-            day.title, Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 4.dp),
+            title, Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 4.dp),
             end = count.toString(), endSaid = said,
         )
         Look.DECK -> LookHeading(
-            day.title, Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 6.dp),
+            title, Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 6.dp),
             end = count.toString(), endSaid = said,
         )
         Look.MULTITRACK -> {
             // Recordings are the editor's clips; calls are calls.
-            val unit = if (calls) "CALL" else "CLIP"
+            val end = pluralStringResource(
+                if (calls) R.plurals.day_heading_calls_mark else R.plurals.day_heading_clips_mark,
+                count,
+                count,
+            )
             LookHeading(
-                day.title,
+                title,
                 Modifier.padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 6.dp),
-                end = if (count == 1) "1 $unit" else "$count ${unit}S",
+                end = end,
                 flag = true,
                 endSaid = said,
             )
@@ -211,7 +224,7 @@ internal fun LookHeading(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            val engraved = TextStyle(fontFamily = LookFonts.engraved, fontSize = 12.sp, letterSpacing = 0.14.em, color = scheme.onSurfaceVariant)
+            val engraved = TextStyle(fontFamily = deckFace(), fontSize = 12.sp, letterSpacing = 0.14.em, color = scheme.onSurfaceVariant)
             Text(title.uppercase(), style = engraved)
             Box(Modifier.weight(1f).height(1.dp).background(scheme.outlineVariant))
             if (end != null) Text(end, style = engraved)

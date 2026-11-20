@@ -6,10 +6,16 @@ import com.jemcik.jemrec.recordings.RecordingSaver
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
 
 /** Messenger calls: which app a daemon file is, and who and which way from
  *  the app's own call notifications. */
+@RunWith(RobolectricTestRunner::class)
 class VoipTest {
+
+    private val context = RuntimeEnvironment.getApplication()
 
     private val viber = "com.viber.voip"
     private val start = 1_795_000_000_000L
@@ -133,7 +139,7 @@ class VoipTest {
             assertEquals("Telegram", app.label)
             assertEquals("telegram", app.tag)
             // The prompt, and a notification naming the app, as for Play's.
-            assertEquals("Telegram call in progress.", RecordPrompt.callText(true, app.pkg))
+            assertEquals("Telegram call in progress.", RecordPrompt.callText(context, true, app.pkg))
             assertNull(VoipCallNotes.clean("Ongoing Telegram call", app.label))
             assertEquals("telegram", VoipApps.forRecfile("jemrec_rec_1_voip-${app.pkg}.dat")?.tag)
         }

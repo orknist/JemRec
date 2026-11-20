@@ -51,8 +51,8 @@ internal suspend fun AfterSave.react(
     }
     when (row.tell) {
         AfterSave.Tell.REASON -> tell((outcome as Outcome.Failed).reason)
-        AfterSave.Tell.NO_AUDIO -> tell(AfterCall.NO_AUDIO)
-        AfterSave.Tell.GREETING_FAILED -> tell(AfterCall.GREETING_FAILED)
+        AfterSave.Tell.NO_AUDIO -> tell(AfterCall.noAudioReason(context))
+        AfterSave.Tell.GREETING_FAILED -> tell(AfterCall.greetingFailedReason(context))
         null -> Unit
     }
     if (row.noteEmpty) RecordingSaver.startMillis(recfile)?.let { CallLedger.noteRecording(context, it, incoming, 0) }

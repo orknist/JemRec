@@ -21,7 +21,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.jemcik.jemrec.R
 import com.jemcik.jemrec.recordings.Recording
 import com.jemcik.jemrec.recordings.Trash
 
@@ -47,11 +49,9 @@ fun TrashScreen(state: UiState, vm: MainViewModel, modifier: Modifier = Modifier
         item {
             Text(
                 if (state.trashed.isEmpty()) {
-                    "Nothing here. Deleted recordings wait here for ${Trash.DAYS} days, " +
-                        "and can be restored until then."
+                    stringResource(R.string.trash_empty, Trash.DAYS)
                 } else {
-                    "Each recording here is removed for good ${Trash.DAYS} days after it " +
-                        "was deleted. Until then, Restore puts it back in the list."
+                    stringResource(R.string.trash_footer, Trash.DAYS)
                 },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -63,7 +63,7 @@ fun TrashScreen(state: UiState, vm: MainViewModel, modifier: Modifier = Modifier
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     TextButton(onClick = { haptics.tap(); vm.restoreAll() }, enabled = !state.busy) {
-                        Text("Restore all")
+                        Text(stringResource(R.string.trash_restore_all))
                     }
                     // Live while the app checks: it only asks, and the yes
                     // waits its turn (DELETE_FOR_GOOD, QUEUED), as home's
@@ -71,7 +71,7 @@ fun TrashScreen(state: UiState, vm: MainViewModel, modifier: Modifier = Modifier
                     TextButton(
                         onClick = { haptics.tap(); vm.askEmptyTrash() },
                         colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                    ) { Text("Delete all for good") }
+                    ) { Text(stringResource(R.string.trash_delete_all_for_good)) }
                 }
             }
         }
@@ -111,7 +111,7 @@ fun TrashScreen(state: UiState, vm: MainViewModel, modifier: Modifier = Modifier
                 TextButton(
                     onClick = { haptics.tap(); vm.restore(recording) },
                     enabled = !state.busy,
-                ) { Text("Restore") }
+                ) { Text(stringResource(R.string.restore)) }
             }
         }
     }
@@ -124,27 +124,30 @@ private fun EmptyTrashDialog(count: Int, vm: MainViewModel) {
     val haptics = LocalHapticFeedback.current
     AlertDialog(
         onDismissRequest = vm::cancelEmptyTrash,
-        title = { Text(if (count == 1) "Delete it for good?" else "Delete all $count for good?") },
+        title = {
+            Text(
+                if (count == 1) stringResource(R.string.trash_delete_one_title)
+                else stringResource(R.string.trash_delete_many_title, count),
+            )
+        },
         text = {
             Text(
-                if (count == 1) {
-                    "The recording in Recently deleted is deleted now, and cannot be restored."
-                } else {
-                    "All $count recordings in Recently deleted are deleted now, and cannot be restored."
-                }
+                if (count == 1) stringResource(R.string.trash_delete_one_body)
+                else stringResource(R.string.trash_delete_many_body, count),
             )
         },
         confirmButton = {
             TextButton(
                 onClick = { haptics.confirm(); vm.confirmEmptyTrash() },
                 colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
-            ) { Text("Delete for good") }
+            ) { Text(stringResource(R.string.trash_delete_for_good)) }
         },
-        dismissButton = { TextButton(onClick = vm::cancelEmptyTrash) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = vm::cancelEmptyTrash) { Text(stringResource(R.string.settings_cancel)) } },
     )
 }
 
 /** "goes in 12 days", or "goes today" on the last one. */
+@Composable
 private fun goesIn(recording: Recording): String? {
     val expires = recording.expiresAtMillis ?: return null
     val day = 24L * 60 * 60 * 1000
@@ -154,8 +157,8 @@ private fun goesIn(recording: Recording): String? {
     // Non-breaking spaces: wrapped, it moves to the next line whole, not as
     // "goes in 14" over "days".
     return when {
-        days <= 0L -> "goes\u00A0today"
-        days == 1L -> "goes\u00A0tomorrow"
-        else -> "goes\u00A0in\u00A0$days\u00A0days"
+        days <= 0L -> stringResource(R.string.trash_goes_today)
+        days == 1L -> stringResource(R.string.trash_goes_tomorrow)
+        else -> stringResource(R.string.trash_goes_in_days, days)
     }
 }

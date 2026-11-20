@@ -49,15 +49,19 @@ class DaySectionsTest {
             assertEquals("18:00", timeUnder(Day.YESTERDAY, at(20, 18)))
             // Under Earlier the date is the only place the day is said.
             assertEquals("12 Oct, 11:00", timeUnder(Day.EARLIER, at(12, 11)))
-            // In Latin digits and English words in any language, as the app's
-            // other times are: the phone's own gave Arabic-Indic digits the
-            // looks' fonts lack, or a month in its language among English
-            // words ("12 Okt" in German, until 0.30).
-            for (language in listOf("de", "uk", "ar", "fa")) {
+            // In Latin digits and English month words for any non-Turkish UI
+            // language: the phone's own gave Arabic-Indic digits the looks'
+            // fonts lack, or a month in its language among English words
+            // ("12 Okt" in German, until 0.30).
+            for (language in listOf("de", "uk", "ar", "fa", "en")) {
                 Locale.setDefault(Locale.forLanguageTag(language))
                 assertEquals(language, "12 Oct, 11:00", timeUnder(Day.EARLIER, at(12, 11)))
                 assertEquals(language, "09:05", timeUnder(Day.TODAY, at(21, 9, 5)))
             }
+            // Turkish UI: Latin digits, Turkish month abbreviation.
+            Locale.setDefault(Locale.forLanguageTag("tr"))
+            assertEquals("12 Eki, 11:00", timeUnder(Day.EARLIER, at(12, 11)))
+            assertEquals("09:05", timeUnder(Day.TODAY, at(21, 9, 5)))
         } finally {
             Locale.setDefault(before)
         }

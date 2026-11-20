@@ -5,6 +5,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.util.Log
+import androidx.annotation.StringRes
+import com.jemcik.jemrec.R
 
 /**
  * The vendor screen that decides whether this app may start after a reboot.
@@ -133,17 +135,22 @@ internal object AutoStart {
      * own page in Settings will show them.
      */
     fun label(context: Context): String =
-        labelFor(candidate(context)?.component?.packageName) ?: "the app's start-up settings"
+        labelFor(context, candidate(context)?.component?.packageName)
+            ?: context.getString(R.string.autostart_generic)
 
     /** The screen's own name, or null for one whose name is not known here. */
-    internal fun labelFor(pkg: String?): String? = when (pkg) {
-        "com.hihonor.systemmanager", "com.huawei.systemmanager" -> "App launch"
-        "com.miui.securitycenter" -> "Autostart"
-        "com.coloros.safecenter", "com.oppo.safe" -> "Startup manager"
-        "com.vivo.permissionmanager", "com.iqoo.secure" -> "Background start-up"
-        "com.samsung.android.lool" -> "Battery"
+    @StringRes
+    internal fun labelRes(pkg: String?): Int? = when (pkg) {
+        "com.hihonor.systemmanager", "com.huawei.systemmanager" -> R.string.autostart_app_launch
+        "com.miui.securitycenter" -> R.string.autostart_autostart
+        "com.coloros.safecenter", "com.oppo.safe" -> R.string.autostart_startup_manager
+        "com.vivo.permissionmanager", "com.iqoo.secure" -> R.string.autostart_bg_startup
+        "com.samsung.android.lool" -> R.string.autostart_battery
         else -> null
     }
+
+    internal fun labelFor(context: Context, pkg: String?): String? =
+        labelRes(pkg)?.let { context.getString(it) }
 
     /**
      * What to do on the screen [open] takes the user to, in that screen's own
@@ -168,7 +175,8 @@ internal object AutoStart {
     /** The screen [open] goes to: its name and what to do on it, from one walk
      *  of the candidates (each resolve is a call into the package manager).
      *  Null on a phone with no such screen. */
-    fun screen(context: Context): Screen? = candidate(context)?.component?.let { screenFor(it.packageName, it.className) }
+    fun screen(context: Context): Screen? =
+        candidate(context)?.component?.let { screenFor(context, it.packageName, it.className) }
 
     /**
      * [label] fits a button and the step that names it ("Tap App launch
@@ -176,19 +184,24 @@ internal object AutoStart {
      * gets a capitalised generic one, where Settings' sentence ("Allow JemRec
      * in the app's start-up settings") reads [label]'s lower-case fallback.
      */
-    internal fun screenFor(pkg: String?, activity: String?): Screen =
-        Screen(labelFor(pkg) ?: "Start-up settings", instructionFor(pkg, activity))
+    internal fun screenFor(context: Context, pkg: String?, activity: String?): Screen =
+        Screen(
+            labelFor(context, pkg) ?: context.getString(R.string.autostart_startup_settings),
+            instructionFor(context, pkg, activity),
+        )
 
-    internal fun instructionFor(pkg: String?, activity: String?): String = when {
-        activity?.endsWith(".ProtectActivity") == true ->
-            "Find JemRec and switch it on, so it is protected."
+    @StringRes
+    internal fun instructionRes(pkg: String?, activity: String?): Int = when {
+        activity?.endsWith(".ProtectActivity") == true -> R.string.autostart_instruction_protected
         pkg == "com.hihonor.systemmanager" || pkg == "com.huawei.systemmanager" ->
-            "Find JemRec, switch it to Manage manually, and leave its switches on."
+            R.string.autostart_instruction_manage_manually
         pkg == "com.miui.securitycenter" || pkg == "com.coloros.safecenter" || pkg == "com.oppo.safe" ||
             pkg == "com.vivo.permissionmanager" || pkg == "com.letv.android.letvsafe" ->
-            "Find JemRec and turn its switch on."
-        pkg == "com.samsung.android.lool" ->
-            "Open Background usage limits, then Never sleeping apps, and add JemRec."
-        else -> "Find JemRec and allow it to start and run in the background."
+            R.string.autostart_instruction_switch_on
+        pkg == "com.samsung.android.lool" -> R.string.autostart_instruction_samsung
+        else -> R.string.autostart_instruction_generic
     }
+
+    internal fun instructionFor(context: Context, pkg: String?, activity: String?): String =
+        context.getString(instructionRes(pkg, activity))
 }

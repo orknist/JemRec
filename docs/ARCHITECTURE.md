@@ -41,7 +41,8 @@ this one is - or to check that it does what it says.
   [what stays switched on](#what-stays-switched-on) ·
   [keeping the pairing](#keeping-the-pairing) ·
   [off, and debugging with it](#off-and-debugging-with-it)
-- The code: [errors and cancellation](#errors-and-cancellation) ·
+- The code: [localization](#localization) ·
+  [errors and cancellation](#errors-and-cancellation) ·
   [where coroutines run](#where-coroutines-run)
 
 ## The fact and the obstacle
@@ -3325,6 +3326,19 @@ any one bank looks at is not known here; the order to try is the order above.
 The emulator checks `hide_developer_options` and `debugging_off` run both
 choices end to end on Android 12, 13, 16 and 17, and `start_without_wifi` the
 third with Wi-Fi off, back on over the port.
+
+## Localization
+
+User-visible text lives in `app/src/main/res/values/` (English),
+`values-tr/` (Turkish) and `values-uk/` (Ukrainian). Android picks the set
+from the phone's system locale: English, Turkish or Ukrainian. Any other
+language falls back to English. There is no `localeConfig`, and no in-app
+language picker.
+
+Diagnostics' *Copy a report* and the answering-machine report stay in English
+on every phone, so what you paste into a GitHub issue reads the same
+everywhere. Self-test timestamps in the log use the same US-style format in
+every locale.
 
 ## Errors and cancellation
 

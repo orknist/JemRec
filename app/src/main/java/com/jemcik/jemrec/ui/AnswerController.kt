@@ -3,6 +3,7 @@ package com.jemcik.jemrec.ui
 import android.app.Application
 import android.media.AudioTrack
 import android.util.Log
+import android.content.res.Resources
 import com.jemcik.jemrec.answering.AnswerConditions
 import com.jemcik.jemrec.answering.AnswerDiagnostics
 import com.jemcik.jemrec.answering.AnsweringMachine
@@ -10,6 +11,7 @@ import com.jemcik.jemrec.answering.EmergencyPause
 import com.jemcik.jemrec.answering.Greeting
 import com.jemcik.jemrec.calls.CallTracking
 import com.jemcik.jemrec.capture.CaptureDaemon
+import com.jemcik.jemrec.R
 import com.jemcik.jemrec.recorder.DaemonClient.TestArming
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -79,15 +81,14 @@ data class AnswerUi(
     val pausedUntil: Long? = null,
     val checkingCarrier: Boolean = false,
 ) {
-    /** Why the switch cannot be turned on, or null when it can. */
-    val blocked: String?
-        get() = when {
-            stageOne == null -> "Run the checks below first"
-            !stageOne.possible -> stageOne.problem
-            !callTracking -> "Needs exact call tracking, in Settings"
-            greetingSeconds == null -> "Record a greeting first"
-            else -> null
-        }
+  /** Why the switch cannot be turned on, or null when it can. */
+    fun blocked(res: Resources): String? = when {
+        stageOne == null -> res.getString(R.string.am_run_checks_first)
+        !stageOne.possible -> stageOne.problemText(res)
+        !callTracking -> res.getString(R.string.am_needs_call_tracking)
+        greetingSeconds == null -> res.getString(R.string.am_record_greeting_first)
+        else -> null
+    }
 
     /** Standing down after an emergency call, and switched on: until when. */
     val paused: Long?
@@ -268,7 +269,7 @@ class AnswerController(
     private fun push(asked: Boolean = true, on: CoroutineScope = scope) {
         on.launch {
             if (!CaptureDaemon.setAnswering(app)) {
-                val words = "the recorder will pick up the answering machine when it next restarts"
+                val words = app.getString(R.string.am_recorder_pickup_restart)
                 if (asked) told(words) else say(words)
             }
         }
@@ -290,7 +291,7 @@ class AnswerController(
     }
 
     fun setEnabled(on: Boolean) {
-        if (on && _state.value.blocked != null) return
+        if (on && _state.value.blocked(app.resources) != null) return
         AnsweringMachine.setEnabled(app, on)
         _state.update { it.copy(enabled = on) }
         push()
@@ -334,13 +335,13 @@ class AnswerController(
         take = scope.launch {
             if (!CaptureDaemon.startTake(app)) {
                 letGo(mine)
-                _state.update { it.copy(greetingProblem = "The recorder could not start recording. Is it running?") }
+                _state.update { it.copy(greetingProblem = app.getString(R.string.am_greeting_recorder_not_running)) }
                 return@launch
             }
             if (dropWhenStarted) {
                 // Left meanwhile: stopped now that it has started, not kept.
                 stopOnTheRecorder(mine, since = clock())
-                say("the greeting's take was stopped as its screen was left, and not kept")
+                say(app.getString(R.string.am_greeting_take_stopped))
                 return@launch
             }
             takeBegan = clock()
@@ -390,7 +391,7 @@ class AnswerController(
         // Answered with nothing: the stop came before the recorder's first
         // read, or its microphone would not open - not a take unsent.
         if (length == 0L) {
-            ended("Nothing was recorded. Try again.")
+            ended(app.getString(R.string.am_nothing_recorded))
             return
         }
         val pcm = CaptureDaemon.fetchTake(app)
@@ -402,7 +403,7 @@ class AnswerController(
                 val saved = withContext(Dispatchers.IO) { runCatching { Greeting.save(app, processed.pcm) } }
                 if (saved.isFailure) {
                     Log.w(TAG, "answer: the greeting could not be saved", saved.exceptionOrNull())
-                    ended("The greeting could not be saved. Is the phone's storage full?")
+                    ended(app.getString(R.string.am_greeting_not_saved))
                     return
                 }
                 // A preview of the greeting this replaces, played while it
@@ -414,16 +415,16 @@ class AnswerController(
                 // screen, which showed it in red as a fault of the greeting -
                 // it is saved, and shown - and kept it after the recorder,
                 // restarted, had it.
-                if (!sent) tell("the recorder will get the new greeting when it next restarts")
+                if (!sent) tell(app.getString(R.string.am_greeting_on_restart))
                 // Told once: a recorder that missed the greeting misses the
                 // settings too. Past the screen, as the take is.
                 push(asked = sent, on = outliving)
             }
             // Not sent - the recorder restarted, a socket cut, the wait out:
             // no word of the voice, which "Nothing was heard" blamed.
-            null -> ended("The recorder did not send the take. Try again.")
-            Greeting.Take.Silent -> ended("Nothing was heard. Hold the phone as for a call, and speak.")
-            Greeting.Take.TooShort -> ended("That was too short for a greeting. Try again.")
+            null -> ended(app.getString(R.string.am_take_not_sent))
+            Greeting.Take.Silent -> ended(app.getString(R.string.am_nothing_heard))
+            Greeting.Take.TooShort -> ended(app.getString(R.string.am_greeting_too_short))
         }
     }
 
@@ -483,7 +484,7 @@ class AnswerController(
         val since = takeBegan
         _state.update { it.copy(recordingTake = false) }
         takeToken?.let { stopOnTheRecorder(it, since) }
-        say("the greeting's take was stopped as its screen was left, and not kept")
+        say(app.getString(R.string.am_greeting_take_stopped))
     }
 
     fun togglePreview() {
@@ -588,7 +589,7 @@ class AnswerController(
             // takes JemRec's settings - at its next start (Revive's
             // pushMode). It answers no call meanwhile: the app gives it no
             // go-ahead without a greeting (AnsweringMachine.decide).
-            if (!dropped || !off) tell("the recorder will drop the greeting when it next restarts")
+            if (!dropped || !off) tell(app.getString(R.string.am_drop_greeting_restart))
         }
     }
 
@@ -603,7 +604,7 @@ class AnswerController(
                 // Told only when asked: run on each opening (and each turn of
                 // the phone, which opens the screen again), it was a snackbar
                 // every time while the recorder was down.
-                (if (asked) tell else say)("the answering machine's checks need the recorder running")
+                (if (asked) tell else say)(app.getString(R.string.am_checks_need_recorder))
             } else {
                 AnswerDiagnostics.rememberStageOne(app, fields)
                 val stage = AnswerDiagnostics.stageOne(fields)
@@ -631,11 +632,11 @@ class AnswerController(
         // after an emergency call, when that may be them calling back. Nor is
         // an emergency number ever called for one (the screen says so too).
         if (incoming && EmergencyPause.pausedUntil(app) != null) {
-            tell("no test call for a day after an emergency call - unless you answer again now")
+            tell(app.getString(R.string.am_no_test_after_emergency))
             return
         }
         if (!incoming && EmergencyPause.isEmergencyNumber(app, number)) {
-            tell("an emergency number is never called for a test")
+            tell(app.getString(R.string.am_emergency_no_test))
             return
         }
         // One arming at a time, whichever screen makes it - JemRec swiped
@@ -644,7 +645,7 @@ class AnswerController(
         // arming reached it last, so two at once would be filed under each
         // other.
         if (!testArming.compareAndSet(false, true)) {
-            tell("a test call is being armed already")
+            tell(app.getString(R.string.am_test_already_arming))
             // Shown here once it is - or why it was not.
             readPendingTest()
             return
@@ -656,7 +657,7 @@ class AnswerController(
         // arming in its results).
         if (AnswerDiagnostics.pendingTest(app) is AnswerDiagnostics.PendingTest.Armed) {
             testArming.set(false)
-            tell("the last test call is read first; start the next one when it is")
+            tell(app.getString(R.string.am_wait_last_test))
             readPendingTest()
             return
         }
@@ -712,10 +713,10 @@ class AnswerController(
 
     /** Why an arming armed nothing, in words, by the recorder's [reply]. */
     private fun refusal(reply: TestArming?, incoming: Boolean): String = when (reply) {
-        TestArming.BAD_NUMBER -> "that number cannot be dialled"
-        TestArming.EMERGENCY -> "an emergency number is never called for a test"
-        TestArming.NO_GREETING -> "the recorder does not have your greeting yet - try again in a moment"
-        TestArming.BUSY -> "the last test call is still going on"
+        TestArming.BAD_NUMBER -> app.getString(R.string.am_bad_number)
+        TestArming.EMERGENCY -> app.getString(R.string.am_emergency_no_test)
+        TestArming.NO_GREETING -> app.getString(R.string.am_no_greeting_yet)
+        TestArming.BUSY -> app.getString(R.string.am_test_still_going)
         // It may have armed all the same, and the recorder cannot say whose
         // its results are - one before 0.31 - or cannot be asked: told, not
         // watched.
@@ -723,9 +724,9 @@ class AnswerController(
             "the recorder did not answer, and may have armed the test all the same: " +
                 "a call in the next three minutes may be answered with your greeting, unread"
         } else {
-            "the recorder did not answer, and may be placing the call all the same; how it goes is not read"
+            app.getString(R.string.am_recorder_no_answer_placing)
         }
-        else -> "the recorder could not arm a test call"
+        else -> app.getString(R.string.am_could_not_arm)
     }
 
     /**
@@ -766,11 +767,11 @@ class AnswerController(
                     // A recorder started since keeps no test: nothing will
                     // come, and it is said now, not when the window is out.
                     last == "none" -> {
-                        ending = "the recorder restarted, so no test call is armed now"
+                        ending = app.getString(R.string.am_restart_no_test)
                         break
                     }
                     another -> {
-                        ending = "the recorder no longer has this test call"
+                        ending = app.getString(R.string.am_no_longer_has_test)
                         break
                     }
                     last == "running" -> _state.update { it.copy(test = "running") }
@@ -782,7 +783,7 @@ class AnswerController(
                     // answered three seconds on, and is "running" once its
                     // greeting starts (ANSWER_GRACE_MS).
                     last == "armed" -> if (System.currentTimeMillis() > _state.value.testUntil + ANSWER_GRACE_MS) {
-                        ending = "no test call came"
+                        ending = app.getString(R.string.am_no_test_came)
                         break
                     }
                 }
@@ -801,10 +802,10 @@ class AnswerController(
                     return@launch
                 }
                 // Still under way: its result comes when it ends.
-                last == "running" -> say("the test call is still going on; how it went is read when this screen next opens")
+                last == "running" -> say(app.getString(R.string.am_test_still_going_screen))
                 // The recorder not to be asked - down, say: the same one,
                 // up again, still holds the result.
-                else -> say("the recorder could not be asked how the test call went; it is asked again when this screen next opens")
+                else -> say(app.getString(R.string.am_could_not_ask_test))
             }
             _state.update { it.copy(test = null) }
         }
@@ -831,7 +832,7 @@ class AnswerController(
             // A microphone that would not mute is this phone's, whichever way
             // the greeting goes: no reason to try the other.
             if (result["mute"] == "0") {
-                told("the microphone did not stay muted, so the caller would hear the room")
+                told(app.getString(R.string.am_mic_not_muted))
             } else {
                 tryTheOtherRoute(type, ::told)
             }
@@ -890,7 +891,7 @@ class AnswerController(
         ) ?: return
         AnsweringMachine.setRoute(app, other)
         push()
-        speak("the greeting did not reach the call; the next test tries the other way")
+        speak(app.getString(R.string.am_greeting_other_route))
     }
 
     /** The question put aside: not asked again. */
@@ -930,21 +931,21 @@ class AnswerController(
         return when {
             // The app's own wait ran out, or no recorder: the change may have
             // gone through all the same.
-            answer == null -> "no answer came from the recorder; ask your carrier again to see if it took"
+            answer == null -> app.getString(R.string.am_no_carrier_answer)
             answer.startsWith("set ") -> null
-            answer.startsWith("unchanged off") -> "your carrier's voicemail is off, so there was nothing to change"
-            answer.startsWith("unchanged error") -> "the phone's forwarding could not be read, so nothing was changed"
-            answer.startsWith("unchanged") -> "your carrier did not say when its voicemail answers, so nothing was changed"
-            answer == "error timeout" -> "no answer came in time"
+            answer.startsWith("unchanged off") -> app.getString(R.string.am_carrier_vm_off)
+            answer.startsWith("unchanged error") -> app.getString(R.string.am_forwarding_unreadable)
+            answer.startsWith("unchanged") -> app.getString(R.string.am_carrier_no_timing)
+            answer == "error timeout" -> app.getString(R.string.am_no_answer_timeout)
             // TelephonyManager.CallForwardingInfoCallback's results, read from
             // Android 16's framework classes (2026-11-08): 2 the fixed dialing
             // numbers' check, 3 not supported, 1 no reason given.
-            code == 2 -> "the phone's fixed dialing numbers did not allow the change"
-            code == 3 -> "this phone or carrier does not take this change"
-            code != null -> "the change did not go through, and no reason was given"
+            code == 2 -> app.getString(R.string.am_fdn_blocked)
+            code == 3 -> app.getString(R.string.am_change_not_supported)
+            code != null -> app.getString(R.string.am_change_no_reason)
             // Not a result of the call's at all: it could not be made - an
             // exception through the recorder's reflection, no telephony.
-            else -> "the recorder could not make the change on this phone"
+            else -> app.getString(R.string.am_change_failed_phone)
         }
     }
 

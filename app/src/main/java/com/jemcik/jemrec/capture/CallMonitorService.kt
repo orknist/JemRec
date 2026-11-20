@@ -15,6 +15,7 @@ import android.util.Log
 import android.media.AudioManager
 import androidx.annotation.VisibleForTesting
 import com.jemcik.jemrec.DeepLink
+import com.jemcik.jemrec.R
 import com.jemcik.jemrec.calls.AfterCall
 import com.jemcik.jemrec.calls.CallLedger
 import com.jemcik.jemrec.calls.RecordPrompt
@@ -1355,7 +1356,7 @@ class CallMonitorService : Service() {
         val ways = files.toMap()
         val outcomes = RecordingSaver.saveAll(this, files).map { (file, outcome) -> Triple(file, ways.getValue(file), outcome) }
         AfterSave.reactToCall(this, outcomes, own, AfterSave.Collector.HANG_UP, ::reportNotRecorded) {
-            AfterCall.postNotRecorded(this, it, AfterCall.PART_NOT_SAVED)
+            AfterCall.postNotRecorded(this, it, AfterCall.partNotSavedTitle(this))
         }
     }
 
@@ -1406,8 +1407,8 @@ class CallMonitorService : Service() {
             ),
         )
         val builder = Notification.Builder(this, CHANNEL_ID)
-            .setContentTitle(notice.title)
-            .setContentText(notice.text)
+            .setContentTitle(getString(notice.titleRes))
+            .setContentText(getString(notice.textRes))
             .setSmallIcon(android.R.drawable.ic_btn_speak_now)
             .setContentIntent(tap)
             .setOngoing(true)
@@ -1415,8 +1416,8 @@ class CallMonitorService : Service() {
             // (Notification.CATEGORY_SERVICE): what this is, for the shade.
             .setCategory(Notification.CATEGORY_SERVICE)
         notice.buttonTicket?.let { ticket ->
-            builder.addAction(messageAction("Talk to them", ACTION_TALK, ticket))
-                .addAction(messageAction("Hang up", ACTION_HANG_UP, ticket))
+            builder.addAction(messageAction(getString(R.string.monitor_talk_to_them), ACTION_TALK, ticket))
+                .addAction(messageAction(getString(R.string.monitor_hang_up), ACTION_HANG_UP, ticket))
         }
         val notification: Notification = builder
             // IMMEDIATE, or Android 12+ sits on a foreground service's
@@ -1503,7 +1504,7 @@ class CallMonitorService : Service() {
         LEGACY_CHANNEL_IDS.forEach { runCatching { manager.deleteNotificationChannel(it) } }
         val channel = NotificationChannel(
             CHANNEL_ID,
-            "Call recording",
+            getString(R.string.monitor_channel_call),
             // LOW: permanently visible, so it must never make a sound.
             NotificationManager.IMPORTANCE_LOW,
         ).apply {

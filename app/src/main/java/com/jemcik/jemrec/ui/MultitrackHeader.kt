@@ -25,6 +25,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
@@ -36,6 +37,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
+import com.jemcik.jemrec.R
 import com.jemcik.jemrec.ui.theme.LookFonts
 import com.jemcik.jemrec.ui.theme.MultitrackColors
 import com.jemcik.jemrec.ui.theme.multitrackColors
@@ -57,17 +59,18 @@ import com.jemcik.jemrec.ui.theme.multitrackColors
 internal fun MultitrackHeader(state: UiState, vm: MainViewModel, answering: Boolean, panel: (@Composable () -> Unit)? = null) {
     val c = multitrackColors()
     val haptics = LocalHapticFeedback.current
+    val context = LocalContext.current
     val status = recorderStatus(state)
     val marks = marks(state, answering)
     val instruction = instruction(state)
-    val word = multitrackWord(status, instruction)
+    val word = multitrackWord(context, status, instruction)
     val wordColor = when (status) {
         RecorderStatus.READY -> c.armed
         RecorderStatus.STARTING, RecorderStatus.CHECKING -> c.muted
         RecorderStatus.OFF -> c.off
         RecorderStatus.CANNOT -> c.cannot
     }
-    val asks = instruction?.tap != null
+    val asks = instruction?.tapRes != null
     Column(
         Modifier
             .fillMaxWidth()
@@ -111,7 +114,7 @@ internal fun MultitrackHeader(state: UiState, vm: MainViewModel, answering: Bool
                             Modifier
                         },
                     )
-                    .clearAndSetSemantics { contentDescription = headerSpeech(state, marks)
+                    .clearAndSetSemantics { contentDescription = headerSpeech(context, state, marks)
                     // Said when it changes - Checking to Ready, say - as
                     // Compose's semantics guide asks of content that changes
                     // on its own (liveRegion, Polite; review, 2026-11-18).
@@ -124,14 +127,14 @@ internal fun MultitrackHeader(state: UiState, vm: MainViewModel, answering: Bool
                 SteadyLine(sizes = { MultiWord(word, wordColor, fitted = false) }) { MultiWord(word, wordColor) }
                 SteadyLine(
                     sizes = {
-                        MultiMarks(c, headerMarks(marks, RecorderStatus.READY))
-                        for (each in Instruction.entries) MultiNote(c, multiWords(each))
+                        MultiMarks(c, headerMarks(context, marks, RecorderStatus.READY))
+                        for (each in Instruction.entries) MultiNote(c, multiWords(context, each))
                     },
                 ) {
                     when {
                         status == RecorderStatus.STARTING -> LedScan(c.ledOn, c.ledOff)
-                        instruction != null -> MultiNote(c, multiWords(instruction))
-                        else -> MultiMarks(c, headerMarks(marks, status))
+                        instruction != null -> MultiNote(c, multiWords(context, instruction))
+                        else -> MultiMarks(c, headerMarks(context, marks, status))
                     }
                 }
             }
@@ -144,15 +147,15 @@ internal fun MultitrackHeader(state: UiState, vm: MainViewModel, answering: Bool
     }
 }
 
-private fun multiWords(instruction: Instruction): String = when (instruction) {
-    Instruction.SWITCH_ON -> "TAP THE BUTTON TO RECORD CALLS"
-    Instruction.SWITCH_ON_OVER_WIFI -> "DEBUGGING OFF · ON NEEDS WI-FI"
-    Instruction.ALLOW_WIFI -> "TAP TO ALLOW THIS WI-FI"
-    Instruction.JOIN_WIFI -> "JOIN ANY WI-FI · RESUMES ITSELF"
-    Instruction.PAIR_AGAIN -> "TAP TO PAIR AGAIN"
-    Instruction.START_AGAIN -> "TAP TO START IT AGAIN"
-    Instruction.TURN_ON_NOTIFICATIONS -> "TAP TO TURN ON NOTIFICATIONS"
-    Instruction.ALLOW_BACKGROUND -> "TAP TO ALLOW BACKGROUND USE"
+private fun multiWords(context: android.content.Context, instruction: Instruction): String = when (instruction) {
+    Instruction.SWITCH_ON -> context.getString(R.string.mt_press_rec)
+    Instruction.SWITCH_ON_OVER_WIFI -> context.getString(R.string.mt_debug_wifi)
+    Instruction.ALLOW_WIFI -> context.getString(R.string.mt_tap_allow_wifi)
+    Instruction.JOIN_WIFI -> context.getString(R.string.mt_join_wifi)
+    Instruction.PAIR_AGAIN -> context.getString(R.string.mt_pair_again)
+    Instruction.START_AGAIN -> context.getString(R.string.mt_start_again)
+    Instruction.TURN_ON_NOTIFICATIONS -> context.getString(R.string.mt_turn_notif)
+    Instruction.ALLOW_BACKGROUND -> context.getString(R.string.mt_allow_bg)
 }
 
 /** The state in the editor's capitals: shrunk to fit one line, unless not
@@ -284,10 +287,18 @@ private fun MultiTabs(state: UiState, c: MultitrackColors, modifier: Modifier = 
  *  ([Instruction.cannotAsk]: the notifications, or the Battery setting);
  *  with it down too, the link is
  *  what is lost, as Memo and Deck say (review, 2026-11-18). */
-internal fun multitrackWord(status: RecorderStatus, instruction: Instruction?): String = when (status) {
-    RecorderStatus.READY -> "ARMED"
-    RecorderStatus.STARTING -> "ARMING"
-    RecorderStatus.CHECKING -> "CHECKING"
-    RecorderStatus.OFF -> "DISARMED"
-    RecorderStatus.CANNOT -> if (instruction?.cannotAsk == true) "CAN'T ASK" else "NO LINK"
+internal fun multitrackWord(
+    context: android.content.Context,
+    status: RecorderStatus,
+    instruction: Instruction?,
+): String = when (status) {
+    RecorderStatus.READY -> context.getString(R.string.mt_armed)
+    RecorderStatus.STARTING -> context.getString(R.string.mt_arming)
+    RecorderStatus.CHECKING -> context.getString(R.string.mt_checking)
+    RecorderStatus.OFF -> context.getString(R.string.mt_disarmed)
+    RecorderStatus.CANNOT -> if (instruction?.cannotAsk == true) {
+        context.getString(R.string.mt_cant_ask)
+    } else {
+        context.getString(R.string.mt_no_link)
+    }
 }

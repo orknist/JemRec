@@ -6,6 +6,7 @@ import android.content.Intent
 import android.util.Log
 import androidx.core.content.edit
 import com.jemcik.jemrec.DeepLink
+import com.jemcik.jemrec.R
 import com.jemcik.jemrec.Prefs
 import com.jemcik.jemrec.adb.AdbTransport
 import com.jemcik.jemrec.calls.AfterCall
@@ -292,21 +293,12 @@ internal object RecorderHealth {
     @androidx.annotation.VisibleForTesting
     internal fun post(context: Context, problem: Problem, silent: Boolean = false) {
         val (text, button) = when (problem) {
-            Problem.NEEDS_WIFI ->
-                "Calls are not being recorded until the phone is on Wi-Fi for a few seconds. " +
-                    "Any network will do - it does not need internet. JemRec restarts on its own." to null
-            Problem.NETWORK_NOT_ALLOWED ->
-                "Android has not allowed Wireless debugging on this Wi-Fi, and JemRec needs it " +
-                    "for a few seconds to restart the recorder. Tap Allow this Wi-Fi, tick Always " +
-                    "allow on this network, and tap Allow." to
-                    ("Allow this Wi-Fi" to DeepLink.intent(context, DeepLink.Kind.ALLOW_WIFI))
-            Problem.CANNOT_CONNECT ->
-                "JemRec cannot connect to Wireless debugging. The phone may have forgotten " +
-                    "its pairing. Pairing again takes a minute." to
-                    ("Pair again" to DeepLink.intent(context, DeepLink.Kind.PAIR_AGAIN))
-            Problem.CANNOT_START ->
-                "JemRec could not restart the recorder on this network. Open JemRec, or try " +
-                    "another Wi-Fi network." to null
+            Problem.NEEDS_WIFI -> context.getString(R.string.health_needs_wifi) to null
+            Problem.NETWORK_NOT_ALLOWED -> context.getString(R.string.health_network_not_allowed) to
+                (context.getString(R.string.allow_this_wi_fi) to DeepLink.intent(context, DeepLink.Kind.ALLOW_WIFI))
+            Problem.CANNOT_CONNECT -> context.getString(R.string.health_cannot_connect) to
+                (context.getString(R.string.instruction_pair_again) to DeepLink.intent(context, DeepLink.Kind.PAIR_AGAIN))
+            Problem.CANNOT_START -> context.getString(R.string.health_cannot_start) to null
         }
         // The tap: home, whose header says why; the button: the fix.
         val open = PendingIntent.getActivity(context, 0, DeepLink.home(context), PendingIntent.FLAG_IMMUTABLE)
@@ -319,7 +311,10 @@ internal object RecorderHealth {
             android.content.Intent(context, com.jemcik.jemrec.capture.AfterCallReceiver::class.java).setAction(ACTION_DISMISSED),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
-        val notification = AfterCall.problem(context, "JemRec is not recording calls", text, open, button?.first?.let { it to fix!! })
+        val notification = AfterCall.problem(
+            context, context.getString(R.string.health_title), text, open,
+            button?.first?.let { it to fix!! },
+        )
             .setOnlyAlertOnce(true)
             .setDeleteIntent(gone)
             .apply {

@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import android.content.res.Resources
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -26,9 +27,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.jemcik.jemrec.R
 import com.jemcik.jemrec.calls.CallHistory
 import com.jemcik.jemrec.calls.CallHistory.Kind
 import com.jemcik.jemrec.calls.CallHistory.Status
@@ -66,13 +69,14 @@ private val UNANSWERED = setOf(Kind.MISSED, Kind.DECLINED, Kind.BLOCKED, Kind.VO
 /** The details, as RowMeta's for a phone call: which way, a phone, when. */
 @Composable
 private fun CallMeta(call: CallHistory.Call, day: Day, style: TextStyle, tint: Color) {
+    val res = LocalContext.current.resources
     DetailsLine(
         style, tint,
         incoming = call.incoming,
         phone = true,
         time = timeUnder(day, call.at),
         arrowTint = if (unanswered(call)) MaterialTheme.colorScheme.error else tint,
-        arrowWords = kindWord(call),
+        arrowWords = kindWord(call, res),
     )
 }
 
@@ -96,7 +100,13 @@ private fun Outcome(call: CallHistory.Call, style: TextStyle, tint: Color) {
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         outcomeMark(call)?.let { Icon(it, contentDescription = null, tint = color, modifier = Modifier.size(16.dp)) }
-        Text(outcomeWords(call), style = style, color = color, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(
+            outcomeWords(call, LocalContext.current.resources),
+            style = style,
+            color = color,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
@@ -110,36 +120,40 @@ private fun outcomeMark(call: CallHistory.Call): ImageVector? = when (call.statu
 
 /** What became of the call, in a few words, with how long it was where it
  *  connected: "3:12 · Recording was off". */
-internal fun outcomeWords(call: CallHistory.Call): String =
-    listOfNotNull(callLength(call.seconds).takeIf { call.status != Status.NOT_CONNECTED }, statusWords(call))
-        .joinToString(" · ")
+internal fun outcomeWords(call: CallHistory.Call, res: Resources): String =
+    listOfNotNull(
+        callLength(call.seconds).takeIf { call.status != Status.NOT_CONNECTED },
+        statusWords(call, res),
+    ).joinToString(" · ")
 
 /** What became of a call with no recording, in a few words. */
-private fun statusWords(call: CallHistory.Call): String = when (call.status) {
+private fun statusWords(call: CallHistory.Call, res: Resources): String = when (call.status) {
     Status.RECORDED -> ""
-    Status.GREETING_HANGUP -> "Hung up during the greeting"
-    Status.GREETING_FAILED -> "Greeting could not play"
-    Status.TEST_CALL -> "Answering machine test"
-    Status.IN_TRASH -> "In Recently deleted"
-    Status.DELETED -> "Recording deleted"
-    Status.SKIPPED -> "Left out by your rules"
-    Status.TOO_SHORT -> "Too short"
-    Status.PENDING -> "Recorded, not saved yet"
-    Status.RECORDING_OFF -> "Recording was off"
-    Status.ASK_FIRST -> "Ask first, not recorded"
-    Status.NOT_RECORDED -> "Not recorded"
-    Status.NO_RECORDING -> "No recording"
-    Status.NOT_CONNECTED -> kindWord(call)
+    Status.GREETING_HANGUP -> res.getString(R.string.call_hung_up_greeting)
+    Status.GREETING_FAILED -> res.getString(R.string.call_greeting_failed)
+    Status.TEST_CALL -> res.getString(R.string.call_am_test)
+    Status.IN_TRASH -> res.getString(R.string.call_in_trash)
+    Status.DELETED -> res.getString(R.string.call_deleted)
+    Status.SKIPPED -> res.getString(R.string.call_skipped)
+    Status.TOO_SHORT -> res.getString(R.string.call_too_short)
+    Status.PENDING -> res.getString(R.string.call_pending)
+    Status.RECORDING_OFF -> res.getString(R.string.call_off)
+    Status.ASK_FIRST -> res.getString(R.string.call_ask_first)
+    Status.NOT_RECORDED -> res.getString(R.string.call_not_recorded)
+    Status.NO_RECORDING -> res.getString(R.string.call_no_recording)
+    Status.NOT_CONNECTED -> kindWord(call, res)
 }
 
-private fun kindWord(call: CallHistory.Call): String = when (call.kind) {
-    Kind.INCOMING -> "Incoming"
-    Kind.OUTGOING -> if (call.status == Status.NOT_CONNECTED) "No answer" else "Outgoing"
-    Kind.MISSED -> "Missed"
-    Kind.DECLINED -> "Declined"
-    Kind.BLOCKED -> "Blocked"
-    Kind.VOICEMAIL -> "Voicemail"
-    Kind.OTHER -> "Answered elsewhere"
+private fun kindWord(call: CallHistory.Call, res: Resources): String = when (call.kind) {
+    Kind.INCOMING -> res.getString(R.string.call_incoming)
+    Kind.OUTGOING -> res.getString(
+        if (call.status == Status.NOT_CONNECTED) R.string.call_no_answer else R.string.call_outgoing,
+    )
+    Kind.MISSED -> res.getString(R.string.call_missed)
+    Kind.DECLINED -> res.getString(R.string.call_declined)
+    Kind.BLOCKED -> res.getString(R.string.call_blocked)
+    Kind.VOICEMAIL -> res.getString(R.string.call_voicemail)
+    Kind.OTHER -> res.getString(R.string.call_elsewhere)
 }
 
 /** "3:21", from the call log's seconds. */
@@ -164,7 +178,7 @@ private fun MemoCallRow(call: CallHistory.Call, day: Day) {
 @Composable
 private fun DeckCallRow(call: CallHistory.Call, day: Day) {
     val scheme = MaterialTheme.colorScheme
-    val mono = deckMono
+    val mono = deckMono()
     RowHead(
         modifier = Modifier.deckTrack(),
         avatar = { CallerAvatar(call.label, call.photo, size = RowPhoto) },

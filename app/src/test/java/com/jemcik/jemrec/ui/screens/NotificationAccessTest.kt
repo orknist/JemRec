@@ -439,9 +439,9 @@ class NotificationAccessTest : ScreenTest() {
     @Test fun theWordsSayWhatIsMissing() {
         assertEquals(
             "Could not turn this on: the recorder did not answer. Try again once JemRec is ready to record.",
-            grantProblem(Setup.GrantProblem.NO_ANSWER),
+            grantProblem(app, Setup.GrantProblem.NO_ANSWER),
         )
-        assertEquals("Could not turn this on: Android refused it.", grantProblem(Setup.GrantProblem.REFUSED))
-        assertFalse(Setup.GrantProblem.entries.any { "Wi-Fi" in grantProblem(it) })
+        assertEquals("Could not turn this on: Android refused it.", grantProblem(app, Setup.GrantProblem.REFUSED))
+        assertFalse(Setup.GrantProblem.entries.any { "Wi-Fi" in grantProblem(app, it) })
     }
 }

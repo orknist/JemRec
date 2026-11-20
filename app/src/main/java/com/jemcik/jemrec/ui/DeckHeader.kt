@@ -27,6 +27,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
@@ -39,9 +40,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.jemcik.jemrec.R
 import com.jemcik.jemrec.ui.theme.DeckColors
 import com.jemcik.jemrec.ui.theme.LookFonts
 import com.jemcik.jemrec.ui.theme.deckColors
+import com.jemcik.jemrec.ui.theme.deckFace
 
 /**
  * Deck's header: one strip of a pocket recorder - the REC key, the LCD, the
@@ -100,16 +104,17 @@ private fun DeckLcd(state: UiState, vm: MainViewModel, marks: Marks, c: DeckColo
     val glow = deckGlow(c, ink)
     val small = deckSmall(c, ink)
     val word = when (status) {
-        RecorderStatus.READY -> "REC READY"
-        RecorderStatus.STARTING -> "STARTING"
-        RecorderStatus.CHECKING -> "CHECKING"
-        RecorderStatus.OFF -> "OFF"
-        RecorderStatus.CANNOT -> "CAN'T REC"
+        RecorderStatus.READY -> stringResource(R.string.deck_rec_ready)
+        RecorderStatus.STARTING -> stringResource(R.string.deck_starting)
+        RecorderStatus.CHECKING -> stringResource(R.string.deck_checking)
+        RecorderStatus.OFF -> stringResource(R.string.deck_off_label)
+        RecorderStatus.CANNOT -> stringResource(R.string.deck_cant_rec)
     }
     // Under the word: the marks while it can record; what to do while it
     // cannot - the old header's second line, the Wi-Fi question a tap away.
     val instruction = instruction(state)
-    val asks = instruction?.tap != null
+    val context = LocalContext.current
+    val asks = instruction?.tapRes != null
     val lcdShape = RoundedCornerShape(8.dp)
     Box(
         modifier
@@ -128,7 +133,7 @@ private fun DeckLcd(state: UiState, vm: MainViewModel, marks: Marks, c: DeckColo
     ) {
         Column(
             Modifier
-                .clearAndSetSemantics { contentDescription = headerSpeech(state, marks)
+                .clearAndSetSemantics { contentDescription = headerSpeech(context, state, marks)
                     // Said when it changes - Checking to Ready, say - as
                     // Compose's semantics guide asks of content that changes
                     // on its own (liveRegion, Polite; review, 2026-11-18).
@@ -142,29 +147,29 @@ private fun DeckLcd(state: UiState, vm: MainViewModel, marks: Marks, c: DeckColo
             SteadyLine(sizes = { DeckWord(word, ink, glow, fitted = false) }) { DeckWord(word, ink, glow) }
             SteadyLine(
                 sizes = {
-                    DeckMarks(litMarks(marks, RecorderStatus.READY), small)
-                    for (each in Instruction.entries) Text(deckWords(each), style = small)
+                    DeckMarks(litMarks(context, marks, RecorderStatus.READY), small)
+                    for (each in Instruction.entries) Text(deckWords(context, each), style = small)
                 },
             ) {
                 when {
                     status == RecorderStatus.STARTING -> SegmentChase(ink)
-                    instruction != null -> Text(deckWords(instruction), style = small)
-                    else -> DeckMarks(litMarks(marks, status), small)
+                    instruction != null -> Text(deckWords(context, instruction), style = small)
+                    else -> DeckMarks(litMarks(context, marks, status), small)
                 }
             }
         }
     }
 }
 
-private fun deckWords(instruction: Instruction): String = when (instruction) {
-    Instruction.SWITCH_ON -> "PRESS REC TO RECORD CALLS"
-    Instruction.SWITCH_ON_OVER_WIFI -> "DEBUGGING OFF · REC NEEDS WI-FI"
-    Instruction.ALLOW_WIFI -> "TAP TO ALLOW THIS WI-FI"
-    Instruction.JOIN_WIFI -> "JOIN ANY WI-FI · RESUMES ITSELF"
-    Instruction.PAIR_AGAIN -> "TAP TO PAIR AGAIN"
-    Instruction.START_AGAIN -> "TAP TO START IT AGAIN"
-    Instruction.TURN_ON_NOTIFICATIONS -> "TAP TO TURN ON NOTIFICATIONS"
-    Instruction.ALLOW_BACKGROUND -> "TAP TO ALLOW BACKGROUND USE"
+private fun deckWords(context: android.content.Context, instruction: Instruction): String = when (instruction) {
+    Instruction.SWITCH_ON -> context.getString(R.string.deck_press_rec)
+    Instruction.SWITCH_ON_OVER_WIFI -> context.getString(R.string.deck_debug_wifi)
+    Instruction.ALLOW_WIFI -> context.getString(R.string.deck_tap_allow_wifi)
+    Instruction.JOIN_WIFI -> context.getString(R.string.deck_join_wifi)
+    Instruction.PAIR_AGAIN -> context.getString(R.string.deck_pair_again)
+    Instruction.START_AGAIN -> context.getString(R.string.deck_start_again)
+    Instruction.TURN_ON_NOTIFICATIONS -> context.getString(R.string.deck_turn_notif)
+    Instruction.ALLOW_BACKGROUND -> context.getString(R.string.deck_allow_bg)
 }
 
 /** The state in the LCD's dots: shrunk to fit one line, unless not
@@ -200,8 +205,9 @@ private fun DeckMarks(marks: List<HeaderMark>, small: TextStyle) {
 /** The LCD's small print - the marks, the notes - in a plain mono: the
  *  LCD's dot font is for the one big word, and too hard to read this small.
  *  [ink] lit or off, glowing in dark. */
+@Composable
 internal fun deckSmall(c: DeckColors, ink: Color) =
-    TextStyle(fontFamily = LookFonts.engraved, fontSize = 11.sp, letterSpacing = 0.04.em, color = ink, shadow = deckGlow(c, ink))
+    TextStyle(fontFamily = deckFace(), fontSize = 11.sp, letterSpacing = 0.04.em, color = ink, shadow = deckGlow(c, ink))
 
 /**
  * One setting's mark as the LCD prints it, boxed, in [small] (deckSmall) - on
@@ -259,7 +265,7 @@ private fun DeckTabs(state: UiState, c: DeckColors, modifier: Modifier = Modifie
                 tabCount(state, tab)?.let { count ->
                     Text(
                         "$count",
-                        fontFamily = LookFonts.engraved,
+                        fontFamily = deckFace(),
                         fontSize = 14.sp,
                         color = if (on) c.keyOnInk else c.keyOffInk,
                         maxLines = 1,

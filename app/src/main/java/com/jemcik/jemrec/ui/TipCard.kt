@@ -16,7 +16,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.jemcik.jemrec.R
 
 /**
  * A tip: an info icon and a line or two, on the tonal card the recordings
@@ -44,7 +46,7 @@ internal fun TipCard(text: String, modifier: Modifier = Modifier, onDismiss: (()
             )
             if (onDismiss != null) {
                 IconButton(onClick = onDismiss) {
-                    Icon(Icons.Filled.Close, contentDescription = "Dismiss tip")
+                    Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.dismiss_tip))
                 }
             }
         }

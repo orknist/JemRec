@@ -1,5 +1,7 @@
 package com.jemcik.jemrec.ui
 
+import androidx.annotation.StringRes
+import com.jemcik.jemrec.R
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -22,8 +24,11 @@ import java.util.TimeZone
  * "Earlier" its row (dated by the file, which can say "Today 16:02") would
  * contradict the heading above it.
  */
-internal enum class Day(val title: String) {
-    TODAY("Today"), YESTERDAY("Yesterday"), EARLIER("Earlier"), OTHER("Other recordings"),
+internal enum class Day(@StringRes val titleRes: Int) {
+    TODAY(R.string.day_today),
+    YESTERDAY(R.string.day_yesterday),
+    EARLIER(R.string.day_earlier),
+    OTHER(R.string.day_other_recordings),
 }
 
 /** Which heading a moment goes under: no moment, OTHER; a moment later today
@@ -70,16 +75,19 @@ internal fun timeUnder(day: Day, at: Long): String {
 
 /**
  * The two formatters, made once per thread and remade only when the phone's
- * time zone changes: rows compose three times a second while a recording
- * plays, and a SimpleDateFormat is not cheap to build - nor safe to share
- * across threads, hence one per thread. Both in Latin digits and English
- * words, as the app's other times are, whatever the phone's language: the
- * date was in the phone's, which gave Arabic-Indic digits the looks' fonts do
- * not have, and a month in another language among English words.
+ * time zone or UI language for month words changes: rows compose three times
+ * a second while a recording plays, and a SimpleDateFormat is not cheap to
+ * build - nor safe to share across threads, hence one per thread.
+ *
+ * Digits stay Latin (Locale.US for the clock). Month words are Turkish only
+ * when the UI language is Turkish; otherwise English (Locale.US), whatever
+ * the phone's language - so a German phone still shows "12 Oct" among the
+ * English UI, not "12 Okt", and Arabic-Indic digits never reach the looks'
+ * fonts (measured before 0.30).
  */
-private class Formats(val zone: TimeZone) {
+private class Formats(val zone: TimeZone, val months: Locale) {
     val time = SimpleDateFormat("HH:mm", Locale.US).apply { timeZone = zone }
-    val date = SimpleDateFormat("d MMM, HH:mm", Locale.US).apply { timeZone = zone }
+    val date = SimpleDateFormat("d MMM, HH:mm", months).apply { timeZone = zone }
 }
 
 private val formatsHere = ThreadLocal<Formats>()
@@ -87,8 +95,9 @@ private val formatsHere = ThreadLocal<Formats>()
 private fun formats(): Formats {
     // getDefault() hands back a fresh copy each time, so compared by id.
     val zone = TimeZone.getDefault()
-    return formatsHere.get()?.takeIf { it.zone.id == zone.id }
-        ?: Formats(zone).also(formatsHere::set)
+    val months = if (Locale.getDefault().language == "tr") Locale.forLanguageTag("tr") else Locale.US
+    return formatsHere.get()?.takeIf { it.zone.id == zone.id && it.months == months }
+        ?: Formats(zone, months).also(formatsHere::set)
 }
 
 private fun sameDay(a: Calendar, b: Calendar): Boolean =

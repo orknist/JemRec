@@ -61,8 +61,10 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.node.ModifierNodeElement
 import androidx.compose.ui.platform.InspectorInfo
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.relocation.BringIntoViewModifierNode
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
@@ -72,11 +74,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
+import com.jemcik.jemrec.R
 import com.jemcik.jemrec.calls.VoipApps
 import com.jemcik.jemrec.ui.theme.JemRecColors
 import com.jemcik.jemrec.ui.theme.LocalLook
 import com.jemcik.jemrec.ui.theme.Look
 import com.jemcik.jemrec.ui.theme.LookFonts
+import com.jemcik.jemrec.ui.theme.deckFace
 
 /**
  * A list's chips, as one band: the Recordings tab's and the Calls tab's, drawn
@@ -149,7 +153,7 @@ private fun ListChip(chip: ListChip, selected: Boolean, calls: Boolean, words: B
             label = {
                 Icon(
                     chipVector(chip.kind),
-                    contentDescription = "Only calls with favourite contacts",
+                    contentDescription = stringResource(R.string.chip_only_favourites_cd),
                     tint = favouriteTint(selected),
                     modifier = Modifier.size(18.dp),
                 )
@@ -159,12 +163,18 @@ private fun ListChip(chip: ListChip, selected: Boolean, calls: Boolean, words: B
         ChipKind.KEPT -> IconFilterChip(
             selected,
             chipVector(chip.kind),
-            if (calls) "Only calls whose recording is kept" else "Only recordings marked to keep",
+            stringResource(
+                if (calls) R.string.chip_only_kept_calls else R.string.chip_only_kept_recordings,
+            ),
             tap,
         )
         // The calls the answering machine took.
-        ChipKind.MESSAGES -> IconFilterChip(selected, chipVector(chip.kind), "Only messages", tap)
-        ChipKind.NOT_RECORDED -> IconFilterChip(selected, chipVector(chip.kind), "Only calls not recorded", tap)
+        ChipKind.MESSAGES -> IconFilterChip(
+            selected, chipVector(chip.kind), stringResource(R.string.chip_only_messages), tap,
+        )
+        ChipKind.NOT_RECORDED -> IconFilterChip(
+            selected, chipVector(chip.kind), stringResource(R.string.chip_only_not_recorded), tap,
+        )
         // The fold-out. A filter chip in looks, a disclosure in
         // job: selected while the field is open, so the icon
         // reads as "search is showing" rather than a filter that
@@ -179,7 +189,9 @@ private fun ListChip(chip: ListChip, selected: Boolean, calls: Boolean, words: B
             label = {
                 Icon(
                     chipVector(chip.kind),
-                    contentDescription = if (calls) "Search calls" else "Search recordings",
+                    contentDescription = stringResource(
+                        if (calls) R.string.chip_search_calls_cd else R.string.chip_search_recordings_cd,
+                    ),
                     // An icon-only chip label does not inherit a
                     // visible content colour the way a text label
                     // does - untinted it came out invisible - so
@@ -221,7 +233,7 @@ private fun favouriteTint(selected: Boolean) = if (selected) JemRecColors.favori
  *  first. */
 @Composable
 private fun WordChip(chip: ListChip, selected: Boolean, onClick: () -> Unit) {
-    val name = chipName(chip)
+    val name = chipName(chip, androidx.compose.ui.platform.LocalContext.current.resources)
     val source = chip.source.orEmpty()
     val icon: @Composable () -> Unit = if (chip.kind == ChipKind.SOURCE && source != PHONE_SOURCE) {
         val app = rememberAppIcon(packagesForTag(source), 18.dp)
@@ -271,14 +283,14 @@ internal fun NarrowingLine(by: List<String>, shown: Int, of: Int, onShowAll: () 
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            "${by.joinToString(" · ")} · $shown of $of",
+            "${by.joinToString(" · ")} · " + stringResource(R.string.narrowing_shown_of, shown, of),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f).semantics { liveRegion = LiveRegionMode.Polite },
         )
-        TextButton(onClick = { haptics.tap(); onShowAll() }) { Text("Show all") }
+        TextButton(onClick = { haptics.tap(); onShowAll() }) { Text(stringResource(R.string.show_all)) }
     }
 }
 
@@ -378,10 +390,18 @@ internal fun NarrowingHeader(
                 enter = expandVertically() + fadeIn(),
                 exit = shrinkVertically() + fadeOut(),
             ) {
-                ListSearchField(narrowing.query, narrowing.search, focus, "Search by name or number")
+                ListSearchField(
+                    narrowing.query,
+                    narrowing.search,
+                    focus,
+                    stringResource(R.string.search_by_name_or_number),
+                )
             }
         }
-        if (listed) NarrowingLine(narrowedBy(narrowing.on, narrowing.query), shown = shown, of = of, onShowAll = onShowAll)
+        if (listed) {
+            val res = LocalContext.current.resources
+            NarrowingLine(narrowedBy(narrowing.on, narrowing.query, res), shown = shown, of = of, onShowAll = onShowAll)
+        }
         // The rule caps the header once rows are passing under it -
         // Material's app bars separate from content on scroll the same way.
         // At the top there is nothing to separate it from.
@@ -427,7 +447,12 @@ private fun NarrowingPanel(narrowing: ListNarrowing, chipsShown: Boolean) {
             }
         }
         AnimatedVisibility(visible = narrowing.searchOpen, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
-            ListSearchField(narrowing.query, narrowing.search, focus, "Search by name or number")
+            ListSearchField(
+                narrowing.query,
+                narrowing.search,
+                focus,
+                stringResource(R.string.search_by_name_or_number),
+            )
         }
     }
 }
@@ -440,11 +465,12 @@ private fun NarrowingPanel(narrowing: ListNarrowing, chipsShown: Boolean) {
 @Composable
 private fun SourceChip(source: String, selected: Boolean, onClick: () -> Unit) {
     if (source == PHONE_SOURCE) {
-        IconFilterChip(selected, chipVector(ChipKind.SOURCE), "Only phone calls", onClick)
+        IconFilterChip(selected, chipVector(ChipKind.SOURCE), stringResource(R.string.chip_only_phone_calls), onClick)
         return
     }
     val name = VoipApps.labelForTag(source) ?: source
     val icon = rememberAppIcon(packagesForTag(source), 18.dp)
+    val onlyApp = stringResource(R.string.chip_only_app_calls, name)
     FilterChip(
         selected = selected,
         onClick = onClick,
@@ -455,7 +481,7 @@ private fun SourceChip(source: String, selected: Boolean, onClick: () -> Unit) {
         ),
         label = {
             if (icon != null) {
-                Image(icon, contentDescription = "Only $name calls", modifier = Modifier.size(18.dp))
+                Image(icon, contentDescription = onlyApp, modifier = Modifier.size(18.dp))
             } else {
                 ChipLabel(name)
             }
@@ -546,7 +572,7 @@ internal fun ListSearchField(query: String, onQuery: (String) -> Unit, focus: Fo
                 trailingIcon = {
                     if (query.isNotEmpty()) {
                         IconButton(onClick = { onQuery("") }) {
-                            Icon(Icons.Filled.Close, contentDescription = "Clear search")
+                            Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.clear_search_cd))
                         }
                     }
                 },
@@ -589,7 +615,7 @@ private fun chipShape(): Shape = when (LocalLook.current) {
 private fun ChipLabel(label: String) {
     when (LocalLook.current) {
         Look.MEMO -> Text(label)
-        Look.DECK -> Text(label.uppercase(), fontFamily = LookFonts.engraved, letterSpacing = 0.08.em)
+        Look.DECK -> Text(label.uppercase(), fontFamily = deckFace(), letterSpacing = 0.08.em)
         Look.MULTITRACK -> Text(label.uppercase(), fontFamily = LookFonts.mono, fontSize = 12.sp, letterSpacing = 0.08.em)
     }
 }

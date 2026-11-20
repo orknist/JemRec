@@ -9,6 +9,7 @@ import android.content.Intent
 import android.util.Log
 import androidx.core.content.edit
 import com.jemcik.jemrec.Prefs
+import com.jemcik.jemrec.R
 import com.jemcik.jemrec.RecordPromptActivity
 import com.jemcik.jemrec.capture.CallMonitorService
 import com.jemcik.jemrec.hex
@@ -54,9 +55,12 @@ object RecordPrompt {
     /** What the prompt says about the call. A messenger call is named by
      *  its app: the daemon cannot tell which way one went, so incoming is
      *  always false for those and would say "outgoing" of every one. */
-    internal fun callText(incoming: Boolean, app: String?): String =
-        app?.let { "${VoipApps.byPackage(it)?.label ?: "Messenger"} call in progress." }
-            ?: if (incoming) "Incoming call in progress." else "Outgoing call in progress."
+    internal fun callText(context: Context, incoming: Boolean, app: String?): String =
+        app?.let {
+            val label = VoipApps.byPackage(it)?.label
+            if (label != null) context.getString(R.string.prompt_messenger, label)
+            else context.getString(R.string.prompt_messenger_generic)
+        } ?: context.getString(if (incoming) R.string.prompt_incoming else R.string.prompt_outgoing)
 
     /** Its channel, made at the app's start too (JemRecApp), so it is there
      *  in Android's settings before the first call asks - to be found, and
@@ -67,7 +71,7 @@ object RecordPrompt {
         manager.createNotificationChannel(
             NotificationChannel(
                 CHANNEL_ID,
-                "Record this call?",
+                context.getString(R.string.prompt_title),
                 // HIGH is what makes it a banner rather than a line in the
                 // shade, which matters when the user has a phone at their ear
                 // and a few seconds to decide.
@@ -80,7 +84,7 @@ object RecordPrompt {
                 setShowBadge(false)
                 enableVibration(true)
                 vibrationPattern = longArrayOf(0, 120, 80, 120)
-                description = "Asked at the start of a call when automatic recording is off"
+                description = context.getString(R.string.prompt_channel_desc)
             }
         )
     }
@@ -89,8 +93,8 @@ object RecordPrompt {
         val ticket = mintTicket(context)
         ensureChannel(context)
         val notification = Notification.Builder(context, CHANNEL_ID)
-            .setContentTitle("Record this call?")
-            .setContentText(callText(incoming, app))
+            .setContentTitle(context.getString(R.string.prompt_title))
+            .setContentText(callText(context, incoming, app))
             .setSmallIcon(android.R.drawable.ic_btn_speak_now)
             .setCategory(Notification.CATEGORY_EVENT)
             // The banner otherwise vanishes after five seconds (SystemUI's
@@ -104,8 +108,8 @@ object RecordPrompt {
             // between 57 and 60 s turned off. RecordPromptActivity: when its
             // window opens.
             .setFullScreenIntent(fullScreen(context, incoming, ticket, app), true)
-            .addAction(action(context, "Record", CallMonitorService.ACTION_RECORD_NOW, incoming, ticket))
-            .addAction(action(context, "Not now", CallMonitorService.ACTION_DECLINE, incoming, ticket))
+            .addAction(action(context, context.getString(R.string.prompt_record), CallMonitorService.ACTION_RECORD_NOW, incoming, ticket))
+            .addAction(action(context, context.getString(R.string.prompt_not_now), CallMonitorService.ACTION_DECLINE, incoming, ticket))
             // Deliberately dismissable: swiping it away is a perfectly clear
             // way to say no, and an unswipeable prompt during a call would be
             // an irritation with no upside.

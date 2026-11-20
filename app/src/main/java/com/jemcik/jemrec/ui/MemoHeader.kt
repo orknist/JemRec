@@ -29,8 +29,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -40,6 +42,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.jemcik.jemrec.R
 import com.jemcik.jemrec.ui.theme.JemRecColors
 import com.jemcik.jemrec.ui.theme.MemoColors
 import com.jemcik.jemrec.ui.theme.memoColors
@@ -63,15 +66,16 @@ import com.jemcik.jemrec.ui.theme.memoColors
 @Composable
 internal fun MemoHeader(state: UiState, vm: MainViewModel, answering: Boolean, panel: (@Composable () -> Unit)? = null) {
     val c = memoColors()
+    val context = LocalContext.current
     val haptics = LocalHapticFeedback.current
     val status = recorderStatus(state)
     val marks = marks(state, answering)
     val (title, titleColor) = when (status) {
-        RecorderStatus.READY -> "Ready to record" to c.ready
-        RecorderStatus.STARTING -> "Starting..." to c.idle
-        RecorderStatus.CHECKING -> "Checking..." to c.idle
-        RecorderStatus.OFF -> "Off" to c.idle
-        RecorderStatus.CANNOT -> "Cannot record" to c.alarm
+        RecorderStatus.READY -> stringResource(R.string.memo_ready) to c.ready
+        RecorderStatus.STARTING -> stringResource(R.string.memo_starting) to c.idle
+        RecorderStatus.CHECKING -> stringResource(R.string.memo_checking) to c.idle
+        RecorderStatus.OFF -> stringResource(R.string.memo_off) to c.idle
+        RecorderStatus.CANNOT -> stringResource(R.string.memo_cannot) to c.alarm
     }
     Column(
         Modifier
@@ -98,7 +102,7 @@ internal fun MemoHeader(state: UiState, vm: MainViewModel, answering: Boolean, p
             // words are left out of it, as the sentence says them; the
             // instruction's tap stays a control of its own.
             Column(
-                Modifier.weight(1f).semantics(mergeDescendants = true) { contentDescription = headerSpeech(state, marks)
+                Modifier.weight(1f).semantics(mergeDescendants = true) { contentDescription = headerSpeech(context, state, marks)
                     // Said when it changes - Checking to Ready, say - as
                     // Compose's semantics guide asks of content that changes
                     // on its own (liveRegion, Polite; review, 2026-11-18).
@@ -112,23 +116,23 @@ internal fun MemoHeader(state: UiState, vm: MainViewModel, answering: Boolean, p
                 val instruction = instruction(state)
                 SteadyLine(
                     sizes = {
-                        MemoMarks(c, marks)
-                        for (each in Instruction.entries) MemoSmall(memoWords(each), c.idle)
+                        MemoMarks(context, c, marks)
+                        for (each in Instruction.entries) MemoSmall(memoWords(context, each), c.idle)
                     },
                 ) {
                     if (status == RecorderStatus.CHECKING) {
                         // Nothing read yet: no mark, as Deck's and
                         // Multitrack's have none lit (headerMark).
                     } else if (instruction == null) {
-                        MemoMarks(c, marks, Modifier.clearAndSetSemantics { })
-                    } else if (instruction.tap != null) {
+                        MemoMarks(context, c, marks, Modifier.clearAndSetSemantics { })
+                    } else if (instruction.tapRes != null) {
                         MemoSmall(
-                            memoWords(instruction),
+                            memoWords(context, instruction),
                             MaterialTheme.colorScheme.primary,
                             Modifier.instructionTap(vm, instruction),
                         )
                     } else {
-                        MemoSmall(memoWords(instruction), c.idle)
+                        MemoSmall(memoWords(context, instruction), c.idle)
                     }
                 }
             }
@@ -140,17 +144,15 @@ internal fun MemoHeader(state: UiState, vm: MainViewModel, answering: Boolean, p
 }
 
 /** Memo's words for what the header asks of the user. */
-private fun memoWords(instruction: Instruction): String = when (instruction) {
-    Instruction.SWITCH_ON -> "Tap the button to record calls"
-    Instruction.SWITCH_ON_OVER_WIFI -> "Debugging off · turn on over Wi-Fi"
-    Instruction.ALLOW_WIFI -> "Tap to allow this Wi-Fi"
-    // Short enough for one line on the Honor: "Join any Wi-Fi - it resumes
-    // on its own" took two there, and its line kept room for both.
-    Instruction.JOIN_WIFI -> "Join any Wi-Fi to resume"
-    Instruction.PAIR_AGAIN -> "Tap to pair again"
-    Instruction.START_AGAIN -> "Tap to start it again"
-    Instruction.TURN_ON_NOTIFICATIONS -> "Tap to turn on notifications"
-    Instruction.ALLOW_BACKGROUND -> "Battery Restricted · tap to allow"
+private fun memoWords(context: android.content.Context, instruction: Instruction): String = when (instruction) {
+    Instruction.SWITCH_ON -> context.getString(R.string.hdr_switch_on)
+    Instruction.SWITCH_ON_OVER_WIFI -> context.getString(R.string.hdr_switch_on_wifi)
+    Instruction.ALLOW_WIFI -> context.getString(R.string.hdr_allow_wifi)
+    Instruction.JOIN_WIFI -> context.getString(R.string.hdr_join_wifi)
+    Instruction.PAIR_AGAIN -> context.getString(R.string.hdr_pair_again)
+    Instruction.START_AGAIN -> context.getString(R.string.hdr_start_again)
+    Instruction.TURN_ON_NOTIFICATIONS -> context.getString(R.string.hdr_turn_on_notif)
+    Instruction.ALLOW_BACKGROUND -> context.getString(R.string.hdr_allow_background)
 }
 
 /** The state: shrunk to fit one line, unless not [fitted] - the full size,
@@ -180,37 +182,46 @@ private fun MemoSmall(text: String, color: Color, modifier: Modifier = Modifier)
  *  than clips at twice the text size. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun MemoMarks(c: MemoColors, marks: Marks, modifier: Modifier = Modifier) {
+private fun MemoMarks(
+    context: android.content.Context,
+    c: MemoColors,
+    marks: Marks,
+    modifier: Modifier = Modifier,
+) {
     FlowRow(
         modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp),
         itemVerticalAlignment = Alignment.CenterVertically,
     ) {
-        for (mark in headerMarks(marks, RecorderStatus.READY)) {
+        for (mark in headerMarks(context, marks, RecorderStatus.READY)) {
             when {
                 mark.setting == Marked.MODE -> Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(5.dp),
                 ) {
                     MemoMark(mark, c)
-                    MemoSmall(if (marks.automatic) "Every call" else "Asks each call", c.idle)
+                    MemoSmall(
+                        if (marks.automatic) stringResource(R.string.memo_every_call)
+                        else stringResource(R.string.memo_asks_each),
+                        c.idle,
+                    )
                 }
                 mark.lit -> MemoMark(
                     mark,
                     c,
-                    Modifier.semantics(mergeDescendants = true) { contentDescription = memoMarkWords(mark) },
+                    Modifier.semantics(mergeDescendants = true) { contentDescription = memoMarkWords(context, mark) },
                 )
             }
         }
     }
 }
 
-private fun memoMarkWords(mark: HeaderMark): String = when (mark.setting) {
+private fun memoMarkWords(context: android.content.Context, mark: HeaderMark): String = when (mark.setting) {
     Marked.MODE -> ""
-    Marked.ANSWERING -> "Answering machine on"
-    Marked.MESSENGERS -> "Messenger calls on"
-    Marked.AUTO_DELETE -> "Auto-delete after ${ageWords(mark.days)}"
+    Marked.ANSWERING -> context.getString(com.jemcik.jemrec.R.string.memo_am_on)
+    Marked.MESSENGERS -> context.getString(com.jemcik.jemrec.R.string.memo_msg_on)
+    Marked.AUTO_DELETE -> context.getString(com.jemcik.jemrec.R.string.memo_auto_delete, ageWords(context, mark.days))
 }
 
 /**

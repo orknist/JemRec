@@ -52,8 +52,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -61,6 +64,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import com.jemcik.jemrec.R
 import com.jemcik.jemrec.ui.theme.DeckColors
 import com.jemcik.jemrec.ui.theme.MemoColors
 import com.jemcik.jemrec.ui.theme.MultitrackColors
@@ -155,7 +159,7 @@ private fun Modifier.keyLip(dark: Boolean) = drawBehind {
 internal fun SettingsGear(vm: MainViewModel, tint: Color) {
     val haptics = LocalHapticFeedback.current
     IconButton(onClick = { haptics.tap(); vm.showSettings() }) {
-        Icon(Icons.Filled.Settings, contentDescription = "Settings", tint = tint)
+        Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.settings), tint = tint)
     }
 }
 
@@ -178,13 +182,14 @@ internal fun SettingsGear(vm: MainViewModel, tint: Color) {
 @Composable
 internal fun Modifier.recordToggle(state: UiState, vm: MainViewModel): Modifier {
     val haptics = LocalHapticFeedback.current
+    val recordCalls = stringResource(R.string.record_calls)
     return this
         .clip(CircleShape)
         .toggleable(value = state.enabled, role = Role.Switch) {
             haptics.toggle(it)
             vm.toggleRecording(it)
         }
-        .semantics { contentDescription = "Record calls" }
+        .semantics { contentDescription = recordCalls }
 }
 
 /** The tap an instruction is, in every look's header - none for one that
@@ -206,7 +211,8 @@ internal fun Modifier.recordToggle(state: UiState, vm: MainViewModel): Modifier 
  *  caller remembers after it (the bytecode, 2026-10-26). */
 @Composable
 internal fun Modifier.instructionTap(vm: MainViewModel, instruction: Instruction?): Modifier {
-    val label = instruction?.tap ?: return this
+    val context = LocalContext.current
+    val label = instruction?.tapLabel(context) ?: return this
     val haptics = LocalHapticFeedback.current
     val turnOnNotifications = LocalTurnOnNotifications.current
     return clickable(onClickLabel = label) {
@@ -365,11 +371,17 @@ internal fun tabCount(state: UiState, tab: HomeTab): Int? =
     state.recordings.size.takeIf { tab == HomeTab.RECORDINGS && it > 0 }
 
 /** The tab's number, heard as what it counts. */
-internal fun Modifier.countSemantics(count: Int): Modifier =
-    semantics { contentDescription = if (count == 1) "1 recording" else "$count recordings" }
+@Composable
+internal fun Modifier.countSemantics(count: Int): Modifier {
+    val label = pluralStringResource(R.plurals.day_heading_recordings, count, count)
+    return semantics { contentDescription = label }
+}
 
 /** The tabs' names, the same in every look. */
-internal fun tabLabel(tab: HomeTab): String = when (tab) {
-    HomeTab.RECORDINGS -> "Recordings"
-    HomeTab.CALLS -> "Calls"
-}
+@Composable
+internal fun tabLabel(tab: HomeTab): String = stringResource(
+    when (tab) {
+        HomeTab.RECORDINGS -> R.string.recordings
+        HomeTab.CALLS -> R.string.calls
+    },
+)

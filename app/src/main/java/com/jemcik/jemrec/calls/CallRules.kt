@@ -8,6 +8,7 @@ import android.util.Log
 import androidx.core.content.edit
 import androidx.core.net.toUri
 import com.jemcik.jemrec.Prefs
+import com.jemcik.jemrec.R
 
 /**
  * Whose calls to keep: all of them unless the user narrows it down.
@@ -168,7 +169,8 @@ object CallRules {
                 if (!cursor.moveToFirst()) return@use null
                 Chosen(
                     key = key,
-                    name = cursor.getString(0)?.takeIf { it.isNotBlank() } ?: "Unnamed contact",
+                    name = cursor.getString(0)?.takeIf { it.isNotBlank() }
+                        ?: context.getString(R.string.unnamed_contact),
                     photo = cursor.getString(1)?.takeIf { it.isNotBlank() }?.toUri(),
                 )
             }

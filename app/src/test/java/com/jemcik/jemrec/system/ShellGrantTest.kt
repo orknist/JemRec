@@ -1,5 +1,6 @@
 package com.jemcik.jemrec.system
 
+import androidx.test.core.app.ApplicationProvider
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -16,6 +17,7 @@ import org.junit.Test
  */
 class ShellGrantTest {
 
+    private val app = ApplicationProvider.getApplicationContext<android.content.Context>()
     private val pkg = "com.jemcik.jemrec"
     private val wss = "android.permission.WRITE_SECURE_SETTINGS"
 
@@ -89,7 +91,7 @@ class ShellGrantTest {
     }
 
     @Test fun aOnePlusIsToldItsSwitch() {
-        val said = ShellGrant.advice(ShellGrant.Outcome.REFUSED, DeviceSkin.OPLUS, monitoring = null)
+        val said = ShellGrant.advice(app, ShellGrant.Outcome.REFUSED, DeviceSkin.OPLUS, monitoring = null)
         assertTrue(said.startsWith("Android would not let JemRec change debugging settings."))
         assertTrue(said.contains("Disable system optimization"))
         assertTrue(said.contains("Disable permission monitoring"))
@@ -97,7 +99,7 @@ class ShellGrantTest {
         // The only card a phone paired before 0.25.2 shows: the recorder
         // needs the switch too (the uninstall's off).
         assertTrue(said.contains("leave it that way"))
-        // Some builds call it just Permission monitoring, to be turned off.
+        // Some builds call it just Permission monitoring, on by default, to be turned off.
         assertTrue(said.contains("where it says just Permission monitoring, turn that off"))
         // Issue #61 was told this, on a OnePlus.
         assertFalse(said.contains("Xiaomi"))
@@ -106,24 +108,24 @@ class ShellGrantTest {
     @Test fun thePropertyOutranksTheName() {
         // Off, on a phone whose name says nothing: the switch.
         assertTrue(
-            ShellGrant.advice(ShellGrant.Outcome.REFUSED, DeviceSkin.UNKNOWN, monitoring = true)
+            ShellGrant.advice(app, ShellGrant.Outcome.REFUSED, DeviceSkin.UNKNOWN, monitoring = true)
                 .contains("needs one more switch on first"),
         )
         // On already: not sent to turn on what is on.
-        val on = ShellGrant.advice(ShellGrant.Outcome.REFUSED, DeviceSkin.OPLUS, monitoring = false)
+        val on = ShellGrant.advice(app, ShellGrant.Outcome.REFUSED, DeviceSkin.OPLUS, monitoring = false)
         assertFalse(on.contains("turn on Disable"))
         assertTrue(on.contains("already set"))
         assertTrue(on.contains("restart the phone"))
     }
 
     @Test fun aXiaomiIsToldItsOwnSwitch() {
-        val said = ShellGrant.advice(ShellGrant.Outcome.REFUSED, DeviceSkin.XIAOMI, monitoring = null)
+        val said = ShellGrant.advice(app, ShellGrant.Outcome.REFUSED, DeviceSkin.XIAOMI, monitoring = null)
         assertTrue(said.contains("USB debugging (Security settings)"))
         assertFalse(said.contains("Disable system optimization"))
     }
 
     @Test fun anyOtherPhoneIsToldBoth() {
-        val said = ShellGrant.advice(ShellGrant.Outcome.NOT_GRANTED, DeviceSkin.STOCK, monitoring = null)
+        val said = ShellGrant.advice(app, ShellGrant.Outcome.NOT_GRANTED, DeviceSkin.STOCK, monitoring = null)
         assertTrue(said.startsWith("Android did not give JemRec the permission"))
         assertTrue(said.contains("Disable system optimization"))
         assertTrue(said.contains("USB debugging (Security settings)"))

@@ -1,5 +1,8 @@
 package com.jemcik.jemrec.ui
 
+import android.content.Context
+import androidx.annotation.StringRes
+import com.jemcik.jemrec.R
 import com.jemcik.jemrec.setup.SetupStep
 
 /**
@@ -96,10 +99,10 @@ internal fun ageShort(days: Int): String = when (days) {
 
 /** The same age in words: what a screen reader hears in the header, and
  *  what Settings offers. */
-internal fun ageWords(days: Int): String = when (days) {
-    180 -> "6 months"
-    365 -> "1 year"
-    else -> "$days days"
+internal fun ageWords(context: Context, days: Int): String = when (days) {
+    180 -> context.getString(R.string.s_6_months)
+    365 -> context.getString(R.string.s_1_year)
+    else -> context.getString(R.string.header_age_days, days)
 }
 
 /** The settings that have a mark, in the order the headers show them. */
@@ -122,16 +125,24 @@ internal fun markFaceTag(mark: HeaderMark) = "markface-${mark.setting}-${if (mar
  * off the mode does not apply, so its mark goes out; the others stay - they
  * are still set.
  */
-internal fun headerMark(setting: Marked, marks: Marks, status: RecorderStatus): HeaderMark {
+internal fun headerMark(context: Context, setting: Marked, marks: Marks, status: RecorderStatus): HeaderMark {
     // Nothing read yet: no mark lit, as none has been read (CHECKING).
     val read = status != RecorderStatus.CHECKING
     return when (setting) {
-        Marked.MODE -> HeaderMark(setting, if (marks.automatic) "AUTO" else "ASK", read && status != RecorderStatus.OFF)
-        Marked.ANSWERING -> HeaderMark(setting, "ANS", read && marks.answering)
-        Marked.MESSENGERS -> HeaderMark(setting, "MSG", read && marks.messengers)
+        Marked.MODE -> HeaderMark(
+            setting,
+            context.getString(if (marks.automatic) R.string.header_mark_auto else R.string.header_mark_ask),
+            read && status != RecorderStatus.OFF,
+        )
+        Marked.ANSWERING -> HeaderMark(setting, context.getString(R.string.header_mark_ans), read && marks.answering)
+        Marked.MESSENGERS -> HeaderMark(setting, context.getString(R.string.header_mark_msg), read && marks.messengers)
         Marked.AUTO_DELETE -> HeaderMark(
             setting,
-            if (marks.autoDeleteDays > 0) "DEL ${ageMark(marks.autoDeleteDays)}" else "DEL",
+            if (marks.autoDeleteDays > 0) {
+                context.getString(R.string.header_mark_del_age, ageMark(marks.autoDeleteDays))
+            } else {
+                context.getString(R.string.header_mark_del)
+            },
             read && marks.autoDeleteDays > 0,
             marks.autoDeleteDays,
         )
@@ -139,18 +150,18 @@ internal fun headerMark(setting: Marked, marks: Marks, status: RecorderStatus): 
 }
 
 /** Every setting's mark, lit or not, in order: Multitrack's LEDs. */
-internal fun headerMarks(marks: Marks, status: RecorderStatus): List<HeaderMark> =
-    Marked.entries.map { headerMark(it, marks, status) }
+internal fun headerMarks(context: Context, marks: Marks, status: RecorderStatus): List<HeaderMark> =
+    Marked.entries.map { headerMark(context, it, marks, status) }
 
 /** The lit marks, in order: what Deck's LCD prints - it leaves out what is
  *  off, where Multitrack's LEDs go dark. */
-internal fun litMarks(marks: Marks, status: RecorderStatus): List<HeaderMark> =
-    headerMarks(marks, status).filter { it.lit }
+internal fun litMarks(context: Context, marks: Marks, status: RecorderStatus): List<HeaderMark> =
+    headerMarks(context, marks, status).filter { it.lit }
 
 /** What the header asks of the user while nothing can be recorded; each
  *  look words it its own way. [tap], where the words are a tap: what
  *  TalkBack says the tap does (instructionTap). */
-internal enum class Instruction(val tap: String? = null, val cannotAsk: Boolean = false) {
+internal enum class Instruction(@StringRes val tapRes: Int? = null, val cannotAsk: Boolean = false) {
     /** Recording is off: the record control turns it on. */
     SWITCH_ON,
     /** Off with all debugging (When JemRec is off): the record control turns
@@ -158,25 +169,28 @@ internal enum class Instruction(val tap: String? = null, val cannotAsk: Boolean 
      *  and then it is a plain SWITCH_ON. */
     SWITCH_ON_OVER_WIFI,
     /** Android has not allowed this Wi-Fi: a tap asks. */
-    ALLOW_WIFI("Allow this Wi-Fi"),
+    ALLOW_WIFI(R.string.allow_this_wi_fi),
     /** No Wi-Fi: the recorder comes back by itself once there is one. */
     JOIN_WIFI,
     /** On Wi-Fi, and Wireless debugging turns JemRec away - a deleted
      *  pairing, likeliest: a tap opens setup's pairing step. */
-    PAIR_AGAIN("Pair again"),
+    PAIR_AGAIN(R.string.instruction_pair_again),
     /** On Wi-Fi, and the recorder did not come back for a reason no revive
      *  has named yet: a tap tries again. */
-    START_AGAIN("Start the recorder again"),
+    START_AGAIN(R.string.instruction_start_again),
     /** Ask first cannot ask (cannotAsk): a tap turns the notifications on
      *  as home's notice does - Android's question first where the
      *  permission is what is missing, else its settings for JemRec or for
      *  the question (rememberTurnOnNotifications). */
-    TURN_ON_NOTIFICATIONS("Turn on notifications", cannotAsk = true),
+    TURN_ON_NOTIFICATIONS(R.string.turn_on_notifications, cannotAsk = true),
     /** Ask first cannot ask with the Battery setting Restricted and exact
      *  call tracking off (cannotAsk): a tap opens App info, where it is
      *  lifted (BatteryHealth). */
-    ALLOW_BACKGROUND("Open App info", cannotAsk = true),
+    ALLOW_BACKGROUND(R.string.home_open_app_info, cannotAsk = true),
 }
+
+/** What TalkBack says a tap on this instruction does (see instructionTap). */
+internal fun Instruction.tapLabel(context: Context): String? = tapRes?.let { context.getString(it) }
 
 /**
  * The recorder down: off Wi-Fi, Wi-Fi is what brings it back, whatever else
@@ -223,37 +237,46 @@ internal fun pairingLostOnHome(state: UiState): Boolean =
  * list under the header says it, first in line; nor how many there are: the
  * Recordings tab says that, in every look.
  */
-internal fun headerSpeech(state: UiState, marks: Marks): String {
+internal fun headerSpeech(context: Context, state: UiState, marks: Marks): String {
     val status = recorderStatus(state)
     val first = when (status) {
         RecorderStatus.OFF -> when {
-            onNeedsWifi(state) -> "Off, with debugging off. Calls are not recorded; turning on needs Wi-Fi."
-            state.debuggingOff -> "Off, with debugging off. Calls are not recorded."
-            else -> "Off. Calls are not recorded."
+            onNeedsWifi(state) -> context.getString(R.string.header_speech_off_wifi)
+            state.debuggingOff -> context.getString(R.string.header_speech_off_debug)
+            else -> context.getString(R.string.header_speech_off)
         }
-        RecorderStatus.STARTING -> "Starting."
+        RecorderStatus.STARTING -> context.getString(R.string.header_starting)
         // Nothing read: nothing said of the settings either.
-        RecorderStatus.CHECKING -> return "Checking."
-        RecorderStatus.READY -> if (marks.automatic) "Ready to record. Records every call." else "Ready to record. Asks before each call."
+        RecorderStatus.CHECKING -> return context.getString(R.string.header_checking)
+        RecorderStatus.READY -> context.getString(
+            if (marks.automatic) R.string.header_ready_auto else R.string.header_ready_ask,
+        )
         RecorderStatus.CANNOT -> when (instruction(state)) {
-            Instruction.ALLOW_WIFI -> "Cannot record. Android has not allowed this Wi-Fi."
-            Instruction.PAIR_AGAIN -> "Cannot record. Wireless debugging turns JemRec away; pair again."
-            Instruction.START_AGAIN -> "Cannot record. The recorder did not start; start it again."
-            Instruction.TURN_ON_NOTIFICATIONS -> "Cannot record. Ask first asks in a notification, and it is off."
-            Instruction.ALLOW_BACKGROUND -> "Cannot record. With the battery use Restricted, Ask first cannot ask."
-            else -> "Cannot record. Join any Wi-Fi; it resumes on its own."
+            Instruction.ALLOW_WIFI -> context.getString(R.string.header_cannot_wifi)
+            Instruction.PAIR_AGAIN -> context.getString(R.string.header_cannot_pair)
+            Instruction.START_AGAIN -> context.getString(R.string.header_cannot_start)
+            Instruction.TURN_ON_NOTIFICATIONS -> context.getString(R.string.header_cannot_notif)
+            Instruction.ALLOW_BACKGROUND -> context.getString(R.string.header_cannot_battery)
+            else -> context.getString(R.string.header_cannot_join_wifi)
         }
     }
+    return first + headerOnPart(context, marks)
+}
+
+private fun headerOnPart(context: Context, marks: Marks): String {
     val on = buildList {
-        if (marks.answering) add("answering machine")
-        if (marks.messengers) add("messenger calls")
-        if (marks.autoDeleteDays > 0) add("auto-delete after ${ageWords(marks.autoDeleteDays)}")
+        if (marks.answering) add(context.getString(R.string.header_on_answering))
+        if (marks.messengers) add(context.getString(R.string.header_on_messengers))
+        if (marks.autoDeleteDays > 0) {
+            add(context.getString(R.string.header_on_auto_delete, ageWords(context, marks.autoDeleteDays)))
+        }
     }
-    val onPart = when (on.size) {
+    return when (on.size) {
         0 -> ""
-        1 -> " ${on[0].replaceFirstChar { it.uppercase() }} is on."
-        else -> " " + (on.dropLast(1).joinToString(", ") + " and " + on.last())
-            .replaceFirstChar { it.uppercase() } + " are on."
+        1 -> context.getString(R.string.header_speech_one_on, on[0].replaceFirstChar { it.uppercase() })
+        else -> {
+            val joined = on.dropLast(1).joinToString(", ") + " and " + on.last()
+            context.getString(R.string.header_speech_many_on, joined.replaceFirstChar { it.uppercase() })
+        }
     }
-    return first + onPart
 }

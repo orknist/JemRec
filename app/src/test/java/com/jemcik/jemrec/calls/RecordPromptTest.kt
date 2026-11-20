@@ -81,12 +81,12 @@ class RecordPromptTest {
     }
 
     @Test fun thePromptNamesTheCall() {
-        assertEquals("Incoming call in progress.", RecordPrompt.callText(true, null))
-        assertEquals("Outgoing call in progress.", RecordPrompt.callText(false, null))
+        assertEquals("Incoming call in progress.", RecordPrompt.callText(context, true, null))
+        assertEquals("Outgoing call in progress.", RecordPrompt.callText(context, false, null))
         // A messenger call by its app, whichever way the daemon said it went.
-        assertEquals("Telegram call in progress.", RecordPrompt.callText(false, "org.telegram.messenger"))
-        assertEquals("Telegram call in progress.", RecordPrompt.callText(true, "org.telegram.messenger"))
-        assertEquals("Messenger call in progress.", RecordPrompt.callText(false, "com.example.unknown"))
+        assertEquals("Telegram call in progress.", RecordPrompt.callText(context, false, "org.telegram.messenger"))
+        assertEquals("Telegram call in progress.", RecordPrompt.callText(context, true, "org.telegram.messenger"))
+        assertEquals("Messenger call in progress.", RecordPrompt.callText(context, false, "com.example.unknown"))
     }
 
     @Test fun theTicketAnswersOnce() {

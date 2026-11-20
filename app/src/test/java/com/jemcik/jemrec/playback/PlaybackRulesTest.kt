@@ -16,26 +16,26 @@ class PlaybackRulesTest {
     @Test fun aKnownCallerIsTheTitleAndTheCallTheLineUnder() {
         assertEquals(
             Titles("Olivia Bennett", "Phone call · Today 14:05"),
-            PlaybackRules.titles("Olivia Bennett", app = null, message = false, whenLabel = "Today 14:05"),
+            PlaybackRules.titles("Olivia Bennett", kind = "Phone call", whenLabel = "Today 14:05"),
         )
         assertEquals(
             Titles("Marcus Chen", "WhatsApp call · 3 Oct, 09:12"),
-            PlaybackRules.titles("Marcus Chen", app = "WhatsApp", message = false, whenLabel = "3 Oct, 09:12"),
+            PlaybackRules.titles("Marcus Chen", kind = "WhatsApp call", whenLabel = "3 Oct, 09:12"),
         )
         assertEquals(
             Titles("Olivia Bennett", "Message · Today 14:05"),
-            PlaybackRules.titles("Olivia Bennett", app = null, message = true, whenLabel = "Today 14:05"),
+            PlaybackRules.titles("Olivia Bennett", kind = "Message", whenLabel = "Today 14:05"),
         )
     }
 
     @Test fun withNobodyKnownItIsTheCallAndWhen() {
-        assertEquals(Titles("Phone call", "Today 14:05"), PlaybackRules.titles(null, null, false, "Today 14:05"))
+        assertEquals(Titles("Phone call", "Today 14:05"), PlaybackRules.titles(null, "Phone call", "Today 14:05"))
     }
 
     @Test fun lockedNothingOfWhoIsShown() {
         val unlocked = Titles("Olivia Bennett", "Phone call · Today 14:05")
-        assertEquals(Titles("Call recording", null), PlaybackRules.shown(unlocked, locked = true))
-        assertEquals(unlocked, PlaybackRules.shown(unlocked, locked = false))
+        assertEquals(Titles("Call recording", null), PlaybackRules.shown(unlocked, locked = true, "Call recording"))
+        assertEquals(unlocked, PlaybackRules.shown(unlocked, locked = false, "Call recording"))
     }
 
     @Test fun aBriefInterruptionHoldsPlayingBackAndRegainingTheAudioPlaysOn() {

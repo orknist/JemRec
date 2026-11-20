@@ -4,6 +4,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.util.Log
 import com.jemcik.jemrec.DeepLink
+import com.jemcik.jemrec.R
 import com.jemcik.jemrec.calls.AfterCall
 import com.jemcik.jemrec.calls.CallTracking
 
@@ -79,19 +80,20 @@ internal object StoppedEarly {
         runCatching {
             val tap = PendingIntent.getActivity(context, 0, DeepLink.home(context), PendingIntent.FLAG_IMMUTABLE)
             val which = if (now - endedAt <= FRESH_MS) {
-                "your last call"
+                context.getString(R.string.stopped_early_last_call)
             } else {
-                "your call of " + android.text.format.DateUtils.formatDateTime(
-                    context, start,
-                    android.text.format.DateUtils.FORMAT_SHOW_DATE or android.text.format.DateUtils.FORMAT_SHOW_TIME,
+                context.getString(
+                    R.string.stopped_early_call_of,
+                    android.text.format.DateUtils.formatDateTime(
+                        context, start,
+                        android.text.format.DateUtils.FORMAT_SHOW_DATE or android.text.format.DateUtils.FORMAT_SHOW_TIME,
+                    ),
                 )
             }
-            val text = "The recording of $which stopped about ${seconds} s before the call ended, so its " +
-                "last part was not recorded: the recorder was ended, or the call's sound could not " +
-                "be taken."
+            val text = context.getString(R.string.stopped_early_body, which, seconds.toInt())
             AfterCall.notifyProblem(
                 context, NOTIFICATION_ID,
-                AfterCall.problem(context, "Recording stopped early", text, tap).build(),
+                AfterCall.problem(context, context.getString(R.string.stopped_early_title), text, tap).build(),
                 "save",
             )
         }.onFailure { Log.w(TAG, "save: could not say the recording stopped early", it) }

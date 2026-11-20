@@ -6,10 +6,11 @@ import android.util.Log
 import androidx.core.content.edit
 import com.jemcik.jemrec.DeepLink
 import com.jemcik.jemrec.Prefs
+import com.jemcik.jemrec.R
 import com.jemcik.jemrec.calls.AfterCall
 
 /**
- * The folder chosen for recordings lost - [WHY_LOST] - and said: on home
+ * The folder chosen for recordings lost - [whyLost] - and said: on home
  * and in Settings while it lasts (UiState.folderLost, from [lost]), and once
  * in a notification at the first save it sent elsewhere, for whoever is not
  * opening JemRec. Until 1.2 a save fell back
@@ -24,7 +25,7 @@ internal object FolderAccess {
     /** What may have happened to it, said the same in the notification, on
      *  home and in Settings: two of them had lost the drive (reviews,
      *  2026-11-18). */
-    const val WHY_LOST = "moved, deleted, its drive taken out, or its access taken back"
+    fun whyLost(context: Context): String = context.getString(R.string.folder_why_lost)
 
     /** Among the problems' ids (AfterCall's 31 and 33, MissedCalls' 32,
      *  RecorderHealth's 34, BackgroundKill's 35). */
@@ -56,12 +57,21 @@ internal object FolderAccess {
                 context, 3601, DeepLink.intent(context, DeepLink.Kind.CHOOSE_FOLDER),
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
             )
-            val text = "JemRec can no longer reach ${RecordingStore.chosenWords(RecordingStore.describe(context))} " +
-                "- $WHY_LOST - so this call was saved in $where. " +
-                "Choose the folder again in JemRec."
+            val text = context.getString(
+                R.string.folder_saved_elsewhere_body,
+                RecordingStore.chosenWords(RecordingStore.describe(context)),
+                whyLost(context),
+                where,
+            )
             val seen = AfterCall.notifyProblem(
                 context, NOTIFICATION_ID,
-                AfterCall.problem(context, "Recording saved elsewhere", text, tap, "Choose again" to choose).build(),
+                AfterCall.problem(
+                    context,
+                    context.getString(R.string.recording_saved_elsewhere),
+                    text,
+                    tap,
+                    context.getString(R.string.choose_again) to choose,
+                ).build(),
                 "store",
             )
             // Told once - if it could be seen; else at the next save.

@@ -16,6 +16,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.jemcik.jemrec.calls.RecordPrompt
 import com.jemcik.jemrec.capture.CallMonitorService
@@ -83,20 +84,20 @@ class RecordPromptActivity : ComponentActivity() {
                             verticalArrangement = Arrangement.spacedBy(16.dp),
                         ) {
                             Text(
-                                "Record this call?",
+                                stringResource(R.string.record_this_call),
                                 style = MaterialTheme.typography.headlineSmall,
                             )
                             Text(
-                                RecordPrompt.callText(incoming, app),
+                                RecordPrompt.callText(this@RecordPromptActivity, incoming, app),
                                 style = MaterialTheme.typography.bodyMedium,
                             )
                             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                 Button(onClick = { answer(CallMonitorService.ACTION_RECORD_NOW) }) {
-                                    Text("Record")
+                                    Text(stringResource(R.string.record))
                                 }
                                 OutlinedButton(
                                     onClick = { answer(CallMonitorService.ACTION_DECLINE) },
-                                ) { Text("Not now") }
+                                ) { Text(stringResource(R.string.not_now)) }
                             }
                         }
                     }

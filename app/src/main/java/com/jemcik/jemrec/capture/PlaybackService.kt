@@ -45,7 +45,7 @@ import com.jemcik.jemrec.playback.SoundPosition
  * from this standard session alone, with nothing Honor-specific.
  *
  * What it shows: the caller's name once the phone is unlocked, and
- * PlaybackRules.LOCKED_TITLE while it is locked - the user's choice. One
+ * the localised lock-screen title while it is locked - the user's choice. One
  * session feeds every surface, so the switch is made in the session itself,
  * when the screen goes off and when the phone is unlocked.
  *
@@ -106,7 +106,13 @@ class PlaybackService : MediaSessionService() {
         super.onCreate()
         running = true
         val focus = AndroidAudioFocus(this)
-        val player = SessionPlayer(mainLooper, RecordingPlayer(this), focus, bothEars = { BothEarsSetting.of(this) })
+        val player = SessionPlayer(
+            mainLooper,
+            RecordingPlayer(this),
+            focus,
+            bothEars = { BothEarsSetting.of(this) },
+            lockedTitle = { getString(R.string.monitor_channel_call) },
+        )
         stopWatchingBothEars = Prefs.watch(this, BothEarsSetting.KEY) { this.player?.bothEarsChanged() }
         focus.listener = player::onFocusChange
         player.locked = keyguard().isKeyguardLocked

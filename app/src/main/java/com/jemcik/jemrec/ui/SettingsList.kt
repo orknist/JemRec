@@ -65,10 +65,13 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.jemcik.jemrec.R
 import com.jemcik.jemrec.ui.theme.LocalLook
 import com.jemcik.jemrec.ui.theme.Look
 import com.jemcik.jemrec.ui.theme.LookFonts
 import com.jemcik.jemrec.ui.theme.deckColors
+import com.jemcik.jemrec.ui.theme.deckFace
 import com.jemcik.jemrec.ui.theme.lookMono
 import com.jemcik.jemrec.ui.theme.memoColors
 import com.jemcik.jemrec.ui.theme.multitrackColors
@@ -200,7 +203,7 @@ private fun rowTitle(): TextStyle = when (LocalLook.current) {
 @ReadOnlyComposable
 private fun rowSummary(): TextStyle = when (LocalLook.current) {
     Look.MEMO -> MaterialTheme.typography.bodyMedium
-    Look.DECK -> TextStyle(fontFamily = LookFonts.engraved, fontSize = 12.sp, lineHeight = 17.sp)
+    Look.DECK -> TextStyle(fontFamily = deckFace(), fontSize = 12.sp, lineHeight = 17.sp)
     Look.MULTITRACK -> TextStyle(fontFamily = LookFonts.mono, fontSize = 12.sp, lineHeight = 17.sp, letterSpacing = 0.02.em)
 }
 
@@ -272,7 +275,7 @@ internal fun SettingsRow(
  * One of a few, picked in place on a screen of its own, as Android's settings
  * guidelines allow for a single choice: a radio button, the choice's name, and
  * its [lines] - each a label and what follows it, the same labels on every
- * choice so they read across ("Switches off:", "Back on:"). The whole row is
+ * choice so they read across (stringResource(R.string.off_switches_off), stringResource(R.string.off_back_on)). The whole row is
  * the radio button, to a tap and to a screen reader, as Material asks of a
  * list item with one; the button sits on the name's line, as a three-line
  * item's leading element does.
@@ -385,8 +388,8 @@ private fun LookSwitch(checked: Boolean, enabled: Boolean) {
             ) {
                 if (checked) Led(c.keyLed, size = 6.dp)
                 Text(
-                    if (checked) "ON" else "OFF",
-                    fontFamily = LookFonts.engraved,
+                    if (checked) stringResource(R.string.deck_on) else stringResource(R.string.deck_off),
+                    fontFamily = deckFace(),
                     fontSize = 13.sp,
                     color = if (checked) c.keyOnInk else c.keyOffInk,
                     maxLines = 1,
@@ -411,7 +414,7 @@ private fun LookSwitch(checked: Boolean, enabled: Boolean) {
             ) {
                 Led(if (checked) c.ledOn else c.ledOff, size = 7.dp, glow = checked)
                 Text(
-                    if (checked) "ON" else "OFF",
+                    if (checked) stringResource(R.string.deck_on) else stringResource(R.string.deck_off),
                     fontFamily = LookFonts.mono,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.SemiBold,
@@ -441,8 +444,8 @@ internal fun markTag(mark: HeaderMark) = "mark-${mark.label}-${if (mark.lit) "li
  *
  * Drawn at the normal text size, as the header is at it: it is a picture of
  * the header's mark, and the row's name and summary say it in words, at any
- * size. Silent to a screen reader for the same reason - "ANS" read out after
- * "Answering machine" would say it twice, the second time in code. Wider
+ * size. Silent to a screen reader for the same reason - stringResource(R.string.ans) read out after
+ * stringResource(R.string.settings_answering_machine) would say it twice, the second time in code. Wider
  * than the icon's slot where the header's mark is (Multitrack's DEL 90D),
  * centred over it rather than squeezed.
  */
@@ -488,7 +491,7 @@ private fun DeckMarkOnLcd(mark: HeaderMark) {
 /**
  * A label for a button of ButtonPair: one line, shrunk at most to
  * [SHRINK_AT_MOST] of its size to fit. On two lines it was a block, not a
- * button - Diagnostics' "Start recorder" in Multitrack's monospace, wider
+ * button - Diagnostics' stringResource(R.string.settings_start_recorder) in Multitrack's monospace, wider
  * than the phone's font, on the Honor (2026-10-23).
  */
 @Composable
@@ -508,7 +511,7 @@ internal fun ButtonLabel(text: String) {
 private val LocalLabelsShrink = staticCompositionLocalOf { false }
 
 /** How far a ButtonLabel may shrink: a little, never as far as large text
- *  undone - at twice the text size, shrunk to fit beside "Delete", "Record
+ *  undone - at twice the text size, shrunk to fit beside stringResource(R.string.am_delete), "Record
  *  again" was half its neighbour's size. */
 private const val SHRINK_AT_MOST = 0.85f
 
@@ -654,10 +657,16 @@ internal fun <T> ChoiceDialog(
             }
         },
         confirmButton = action ?: {
-            TextButton(onClick = onDismiss) { Text(if (closeOnChoose) "Cancel" else "Done") }
+            TextButton(onClick = onDismiss) {
+                Text(if (closeOnChoose) stringResource(R.string.settings_cancel) else stringResource(R.string.done))
+            }
         },
         dismissButton = if (action != null) {
-            { TextButton(onClick = onDismiss) { Text(if (closeOnChoose) "Cancel" else "Done") } }
+            {
+                TextButton(onClick = onDismiss) {
+                    Text(if (closeOnChoose) stringResource(R.string.settings_cancel) else stringResource(R.string.done))
+                }
+            }
         } else {
             null
         },
@@ -732,7 +741,7 @@ internal fun <T> ConnectedChoices(
                         maxLines = 1,
                         softWrap = false,
                         // A floor in dp: an sp one doubled at twice the text
-                        // size and "All but" came out as "All b".
+                        // size and stringResource(R.string.all_but) came out as "All b".
                         autoSize = oneLineAutoSize(min = 9.dp, max = 14.sp),
                     )
                 }
@@ -768,6 +777,7 @@ internal object SettingsIcons {
 
     val Hidden = icon("Hidden", "M12,7c2.76,0 5,2.24 5,5 0,0.65 -0.13,1.26 -0.36,1.83l2.92,2.92c1.51,-1.26 2.7,-2.89 3.43,-4.75 -1.73,-4.39 -6,-7.5 -11,-7.5 -1.4,0 -2.74,0.25 -3.98,0.7l2.16,2.16C10.74,7.13 11.35,7 12,7zM2,4.27l2.28,2.28 0.46,0.46C3.08,8.3 1.78,10.02 1,12c1.73,4.39 6,7.5 11,7.5 1.55,0 3.03,-0.3 4.38,-0.84l0.42,0.42L19.73,22 21,20.73 3.27,3 2,4.27zM7.53,9.8l1.55,1.55c-0.05,0.21 -0.08,0.43 -0.08,0.65 0,1.66 1.34,3 3,3 0.22,0 0.44,-0.03 0.65,-0.08l1.55,1.55c-0.67,0.33 -1.41,0.53 -2.2,0.53 -2.76,0 -5,-2.24 -5,-5 0,-0.79 0.2,-1.53 0.53,-2.2zM11.84,9.02l3.15,3.15 0.02,-0.16c0,-1.66 -1.34,-3 -3,-3l-0.17,0.01z")
 
+    // Icon path names (not user-visible labels).
     val Restore = icon("Restore", "M14,12c0,-1.1 -0.9,-2 -2,-2s-2,0.9 -2,2 0.9,2 2,2 2,-0.9 2,-2zM12,3c-4.97,0 -9,4.03 -9,9H0l4,4 4,-4H5c0,-3.87 3.13,-7 7,-7s7,3.13 7,7 -3.13,7 -7,7c-1.51,0 -2.91,-0.49 -4.06,-1.3l-1.42,1.44C8.04,20.3 9.94,21 12,21c4.97,0 9,-4.03 9,-9s-4.03,-9 -9,-9z")
 
     val Voicemail = icon("Voicemail", "M18.5,6C15.46,6 13,8.46 13,11.5c0,1.33 0.47,2.55 1.26,3.5H9.74c0.79,-0.95 1.26,-2.17 1.26,-3.5C11,8.46 8.54,6 5.5,6S0,8.46 0,11.5 2.46,17 5.5,17h13c3.04,0 5.5,-2.46 5.5,-5.5S21.54,6 18.5,6zM5.5,15C3.57,15 2,13.43 2,11.5S3.57,8 5.5,8 9,9.57 9,11.5 7.43,15 5.5,15zM18.5,15c-1.93,0 -3.5,-1.57 -3.5,-3.5S16.57,8 18.5,8 22,9.57 22,11.5 20.43,15 18.5,15z")

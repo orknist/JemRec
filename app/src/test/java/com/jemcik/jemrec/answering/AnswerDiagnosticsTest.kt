@@ -2,14 +2,24 @@ package com.jemcik.jemrec.answering
 
 import com.jemcik.jemrec.answering.AnswerDiagnostics.Verdict
 import com.jemcik.jemrec.capture.CaptureDaemon
+import androidx.test.core.app.ApplicationProvider
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+import org.robolectric.annotation.ConscryptMode
 
 /** What the diagnostics make of the recorder's measurements. */
+@RunWith(RobolectricTestRunner::class)
+@ConscryptMode(ConscryptMode.Mode.OFF)
+@Config(sdk = [36])
 class AnswerDiagnosticsTest {
+
+    private val res = ApplicationProvider.getApplicationContext<android.content.Context>().resources
 
     /** As the Honor answered stage one, 2026-10-22. */
     private val honor = CaptureDaemon.fields(
@@ -32,14 +42,14 @@ class AnswerDiagnosticsTest {
     @Test fun theHonorPassesTheNoCallChecks() {
         val stage = AnswerDiagnostics.stageOne(honor)
         assertTrue(stage.possible)
-        assertNull(stage.problem)
+        assertNull(stage.problemText(res))
         assertEquals("HONOR BKQ-N49 (SM8850) Android API 37", stage.describe)
     }
 
     @Test fun noInCallMusicAndNoScreeningIsNotAvailable() {
         val stage = AnswerDiagnostics.stageOne(honor + mapOf("incallmusic" to "0", "screening" to "0"))
         assertFalse(stage.possible)
-        assertTrue(stage.problem!!.contains("no in-call music"))
+        assertTrue(stage.problemText(res)!!.contains("no in-call music"))
         // The call-screening route alone is still worth a test call.
         assertTrue(AnswerDiagnostics.stageOne(honor + mapOf("incallmusic" to "0")).possible)
         assertFalse(AnswerDiagnostics.stageOne(honor + mapOf("perms" to "MODIFY_PHONE_STATE")).possible)
@@ -51,17 +61,17 @@ class AnswerDiagnosticsTest {
         val stage = AnswerDiagnostics.stageOne(honor + mapOf("incallmusic" to "-1", "screening" to "0"))
         assertTrue(stage.audioUnread)
         assertTrue(stage.possible)
-        assertNull(stage.problem)
+        assertNull(stage.problemText(res))
     }
 
     @Test fun whatTheRecorderLacksIsSaidPlainly() {
         // No mute: not a permission anyone can grant.
-        assertTrue(AnswerDiagnostics.stageOne(honor + mapOf("perms" to "mute")).problem!!.contains("mute your microphone"))
+        assertTrue(AnswerDiagnostics.stageOne(honor + mapOf("perms" to "mute")).problemText(res)!!.contains("mute your microphone"))
         // Cannot see other apps' calls: it would refuse every ring.
-        assertTrue(AnswerDiagnostics.stageOne(honor + mapOf("perms" to "calls")).problem!!.contains("never answer"))
+        assertTrue(AnswerDiagnostics.stageOne(honor + mapOf("perms" to "calls")).problemText(res)!!.contains("never answer"))
         assertEquals(
             "The recorder lacks a permission it needs here.",
-            AnswerDiagnostics.stageOne(honor + mapOf("perms" to "RECORD_AUDIO")).problem,
+            AnswerDiagnostics.stageOne(honor + mapOf("perms" to "RECORD_AUDIO")).problemText(res),
         )
     }
 
@@ -124,10 +134,10 @@ class AnswerDiagnosticsTest {
     }
 
     @Test fun theSummarySaysWhatWasTested() {
-        assertNull(AnswerDiagnostics.summary(emptyMap()))
+        assertNull(AnswerDiagnostics.summary(emptyMap(), res))
         assertEquals(
             "Works on 2G; Very likely works on VoLTE",
-            AnswerDiagnostics.summary(mapOf("VoLTE" to Verdict.LIKELY, "2G" to Verdict.WORKS)),
+            AnswerDiagnostics.summary(mapOf("VoLTE" to Verdict.LIKELY, "2G" to Verdict.WORKS), res),
         )
     }
 

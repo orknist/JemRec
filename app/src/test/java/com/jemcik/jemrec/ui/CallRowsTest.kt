@@ -1,6 +1,7 @@
 package com.jemcik.jemrec.ui
 
 import android.net.Uri
+import androidx.test.core.app.ApplicationProvider
 import com.jemcik.jemrec.calls.CallHistory
 import com.jemcik.jemrec.calls.CallHistory.Kind
 import com.jemcik.jemrec.calls.CallHistory.Status
@@ -9,13 +10,21 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
 import org.mockito.Mockito
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+import org.robolectric.annotation.ConscryptMode
 
 /** The Calls tab's rows: which calls are marked as nobody answering, and
  *  whose a recorded call's row is. */
+@RunWith(RobolectricTestRunner::class)
+@ConscryptMode(ConscryptMode.Mode.OFF)
+@Config(sdk = [36])
 class CallRowsTest {
 
     private val uri: Uri = Mockito.mock(Uri::class.java)
+    private val res = ApplicationProvider.getApplicationContext<android.content.Context>().resources
 
     private fun call(kind: Kind, label: String = "Hana Sato", at: Long = 1_761_000_000_000L, recording: Recording? = null) =
         CallHistory.Call(
@@ -51,7 +60,10 @@ class CallRowsTest {
         try {
             java.util.Locale.setDefault(java.util.Locale.forLanguageTag("ar-EG"))
             assertEquals("1:05", clock(65_000))
-            assertEquals("3:12 · Recording was off", outcomeWords(call(Kind.INCOMING).copy(seconds = 192, status = Status.RECORDING_OFF)))
+            assertEquals(
+                "3:12 · Recording was off",
+                outcomeWords(call(Kind.INCOMING).copy(seconds = 192, status = Status.RECORDING_OFF), res),
+            )
         } finally {
             java.util.Locale.setDefault(before)
         }

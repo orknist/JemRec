@@ -50,6 +50,7 @@ import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.layout.layoutId
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -63,6 +64,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
+import com.jemcik.jemrec.R
 import com.jemcik.jemrec.playback.Output
 import com.jemcik.jemrec.recordings.Recording
 import com.jemcik.jemrec.ui.theme.DeckColors
@@ -72,6 +74,7 @@ import com.jemcik.jemrec.ui.theme.Look
 import com.jemcik.jemrec.ui.theme.LookFonts
 import com.jemcik.jemrec.ui.theme.MultitrackColors
 import com.jemcik.jemrec.ui.theme.deckColors
+import com.jemcik.jemrec.ui.theme.deckFace
 import com.jemcik.jemrec.ui.theme.memoColors
 import com.jemcik.jemrec.ui.theme.multitrackColors
 import java.util.Locale
@@ -180,8 +183,14 @@ internal val LocalPlayerHere = staticCompositionLocalOf { true }
 @Composable
 internal fun Modifier.rowTaps(recording: Recording, state: UiState, events: RowEvents): Modifier {
     val haptics = LocalHapticFeedback.current
+    val playLabel = stringResource(R.string.play)
+    val selectLabel = stringResource(R.string.a11y_select)
+    val deselectLabel = stringResource(R.string.a11y_deselect)
+    val startSelecting = stringResource(R.string.a11y_start_selecting)
+    val selectedLabel = stringResource(R.string.a11y_selected)
+    val notSelectedLabel = stringResource(R.string.a11y_not_selected)
     if (!LocalRowsSelectable.current) {
-        return clickable(onClickLabel = "Play") { haptics.tap(); events.play(recording) }
+        return clickable(onClickLabel = playLabel) { haptics.tap(); events.play(recording) }
     }
     // Selecting, the row says whether it is picked - TalkBack's "Selected" -
     // and what a tap does to it: the custom control's own state, as Android
@@ -189,13 +198,16 @@ internal fun Modifier.rowTaps(recording: Recording, state: UiState, events: RowE
     // "Select", picked or not; only a picked row's photo said "Selected".
     val picked = state.selecting && recording.name in state.selected
     val selection = if (state.selecting) {
-        semantics { selected = picked; stateDescription = if (picked) "Selected" else "Not selected" }
+        semantics {
+            selected = picked
+            stateDescription = if (picked) selectedLabel else notSelectedLabel
+        }
     } else {
         this
     }
     return selection.combinedClickable(
-        onClickLabel = if (state.selecting) (if (picked) "Deselect" else "Select") else "Play",
-        onLongClickLabel = if (state.selecting) (if (picked) "Deselect" else "Select") else "Start selecting",
+        onClickLabel = if (state.selecting) (if (picked) deselectLabel else selectLabel) else playLabel,
+        onLongClickLabel = if (state.selecting) (if (picked) deselectLabel else selectLabel) else startSelecting,
         onClick = {
             if (state.selecting) {
                 haptics.toggle(recording.name !in state.selected)
@@ -272,7 +284,7 @@ internal fun NameLine(label: String, favorite: Boolean, style: TextStyle) {
         if (favorite) {
             Icon(
                 Icons.Filled.Star,
-                contentDescription = "Favourite contact",
+                contentDescription = stringResource(R.string.a11y_favourite_contact),
                 tint = JemRecColors.favorite,
                 modifier = Modifier.size(16.dp),
             )
@@ -346,11 +358,11 @@ internal fun DetailsLine(
             }
         }
         if (phone) {
-            Icon(Icons.Filled.Call, contentDescription = "Phone call", tint = tint, modifier = Modifier.size(14.dp))
+            Icon(Icons.Filled.Call, contentDescription = stringResource(R.string.a11y_phone_call), tint = tint, modifier = Modifier.size(14.dp))
         }
         if (appIcon != null) Image(appIcon, contentDescription = appName, modifier = Modifier.size(16.dp))
         if (message) {
-            Icon(messageIcon, contentDescription = "Message", tint = tint, modifier = Modifier.size(16.dp))
+            Icon(messageIcon, contentDescription = stringResource(R.string.a11y_message), tint = tint, modifier = Modifier.size(16.dp))
         }
         if (time != null) {
             Text(
@@ -430,13 +442,15 @@ internal fun RowActions(recording: Recording, events: RowEvents, tint: Color, ke
         SmallIconButton({ haptics.tap(); events.toggleKept(recording) }, size) {
             Icon(
                 if (recording.kept) KeepIcons.Kept else KeepIcons.NotKept,
-                contentDescription = if (recording.kept) "Kept - tap to stop keeping" else "Keep: never auto-delete",
+                contentDescription = stringResource(
+                    if (recording.kept) R.string.a11y_kept_tap_off else R.string.a11y_keep_never_delete,
+                ),
                 tint = if (recording.kept) kept else tint,
                 modifier = Modifier.size(20.dp),
             )
         }
         SmallIconButton({ haptics.tap(); events.share(recording) }, size) {
-            Icon(Icons.Filled.Share, contentDescription = "Share", tint = tint, modifier = Modifier.size(20.dp))
+            Icon(Icons.Filled.Share, contentDescription = stringResource(R.string.share), tint = tint, modifier = Modifier.size(20.dp))
         }
     }
 }
@@ -466,11 +480,9 @@ private fun EarpieceButton(earpiece: Boolean, events: RowEvents, tint: Color, on
     SmallIconButton({ haptics.tap(); events.chooseOutput(if (earpiece) Output.SPEAKER else Output.EARPIECE) }, 40.dp) {
         Icon(
             if (earpiece) EarpieceIcons.Ear else EarpieceIcons.Loudspeaker,
-            contentDescription = if (earpiece) {
-                "Playing through the earpiece - tap for the loudspeaker"
-            } else {
-                "Playing through the loudspeaker - tap for the earpiece"
-            },
+            contentDescription = stringResource(
+                if (earpiece) R.string.a11y_playing_earpiece else R.string.a11y_playing_loudspeaker,
+            ),
             tint = if (earpiece) on else tint,
             modifier = Modifier.size(20.dp),
         )
@@ -630,11 +642,13 @@ private fun PlayKey(
 ) {
     val haptics = LocalHapticFeedback.current
     val playing = state.playing && state.playingName == recording.name
+    val playLabel = stringResource(R.string.play)
+    val pauseLabel = stringResource(R.string.pause)
     Box(
         modifier
             .size(width, height)
-            .clickable(onClickLabel = if (playing) "Pause" else "Play") { haptics.tap(); events.play(recording) }
-            .semantics { contentDescription = if (playing) "Pause" else "Play" },
+            .clickable(onClickLabel = if (playing) pauseLabel else playLabel) { haptics.tap(); events.play(recording) }
+            .semantics { contentDescription = if (playing) pauseLabel else playLabel },
         contentAlignment = Alignment.Center,
     ) {
         // The marks in proportion to the key, so a smaller key is not a
@@ -671,7 +685,7 @@ private fun TransportBar(
         Row {
             RowActions(recording, events, tint, kept, size = 40.dp)
             SmallIconButton({ haptics.tap(); events.stopPlaying() }, 40.dp) {
-                Icon(Icons.Filled.KeyboardArrowUp, contentDescription = "Collapse player", tint = tint)
+                Icon(Icons.Filled.KeyboardArrowUp, contentDescription = stringResource(R.string.a11y_collapse_player), tint = tint)
             }
         }
     }
@@ -802,7 +816,7 @@ private fun DeckRow(recording: Recording, day: Day, state: UiState, events: RowE
     val c = deckColors()
     val scheme = MaterialTheme.colorScheme
     val current = !state.selecting && state.playingName == recording.name
-    val mono = deckMono
+    val mono = deckMono()
     RowHead(
         modifier = Modifier.deckTrack(ground = if (current) c.rowPlaying else Color.Transparent, taps = Modifier.rowTaps(recording, state, events)),
         avatar = { RowAvatar(recording, state, events) },
@@ -880,7 +894,7 @@ private fun DeckPlaying(recording: Recording, day: Day, state: UiState, events: 
             trailing = earpieceSlot(state, events, tint = scheme.secondary, on = scheme.onSurface),
         ) {
             RowName(recording, MaterialTheme.typography.bodyLarge.copy(color = scheme.onSurface))
-            RowMeta(recording, day, deckMono, c.label)
+            RowMeta(recording, day, deckMono(), c.label)
         }
         Column(
             Modifier
@@ -941,8 +955,11 @@ internal fun hueFor(caller: String?, c: MultitrackColors): Color {
     return c.hues[index % c.hues.size]
 }
 
-/** Deck's small engraved words: a row's details, the Calls tab's. */
-internal val deckMono = TextStyle(fontFamily = LookFonts.engraved, fontSize = 13.sp)
+/** Deck's small engraved words: a row's details, the Calls tab's. Turkish UI
+ *  uses JetBrains Mono for the whole line (Share Tech Mono lacks ğşĞŞİ). */
+@Composable
+@ReadOnlyComposable
+internal fun deckMono() = TextStyle(fontFamily = deckFace(), fontSize = 13.sp)
 
 /** Deck's LCD glow in dark - its segments lit, a negative LCD's - or none
  *  in light: the header's, the player's, Settings' bar and marks. */

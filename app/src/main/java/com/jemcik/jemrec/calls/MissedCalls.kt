@@ -6,6 +6,7 @@ import android.content.Context
 import android.util.Log
 import androidx.core.content.edit
 import com.jemcik.jemrec.DeepLink
+import com.jemcik.jemrec.R
 import com.jemcik.jemrec.Prefs
 import com.jemcik.jemrec.capture.AfterCallReceiver
 import com.jemcik.jemrec.capture.CaptureDaemon
@@ -143,11 +144,15 @@ internal object MissedCalls {
             .sortedByDescending { it.at }
         if (listed.isEmpty()) return
 
-        val title = if (listed.size == 1) "A call was not recorded" else "${listed.size} calls were not recorded"
+        val title = if (listed.size == 1) {
+            context.getString(R.string.missed_one)
+        } else {
+            context.getString(R.string.missed_many, listed.size)
+        }
         val lines = listed.map { "${it.label}, ${at(it.at)}, ${AfterCall.length(it.seconds.toDouble())}" }
         val body = lines.take(5).joinToString("\n") +
-            (if (lines.size > 5) "\n…and ${lines.size - 5} more" else "") +
-            "\n\nRun the self-test to see why."
+            (if (lines.size > 5) context.getString(R.string.missed_and_more, lines.size - 5) else "") +
+            "\n\n" + context.getString(R.string.missed_run_self_test)
         val selfTest = PendingIntent.getActivity(
             context, 3201, DeepLink.intent(context, DeepLink.Kind.SELF_TEST, LINK),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
@@ -158,7 +163,11 @@ internal object MissedCalls {
             context, 3202, DeepLink.intent(context, DeepLink.Kind.CALLS),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
-        val notification = AfterCall.problem(context, title, body, calls, "Self-test" to selfTest, collapsed = lines.first())
+        val notification = AfterCall.problem(
+            context, title, body, calls,
+            context.getString(R.string.after_self_test) to selfTest,
+            collapsed = lines.first(),
+        )
             .setDeleteIntent(seen(context))
             .setOnlyAlertOnce(true)
             // Callers' names are not for the lock screen: there it says only

@@ -9,26 +9,17 @@ package com.jemcik.jemrec.playback
  */
 internal object PlaybackRules {
 
-    /** What the media controls show while the phone is locked: nothing of
-     *  who the call was with. The lock screen is readable by whoever holds
-     *  the phone, and on the Honor (MagicOS 11, 2026-10-23) it showed the
-     *  caller's name and the controls with Media3's defaults. */
-    const val LOCKED_TITLE = "Call recording"
-
     /** A recording as the media controls name it: who, then what and when;
-     *  with nobody known, what and when. */
-    fun titles(caller: String?, app: String?, message: Boolean, whenLabel: String): Titles {
-        val kind = when {
-            message -> "Message"
-            app != null -> "$app call"
-            else -> "Phone call"
-        }
-        return if (caller != null) Titles(caller, "$kind · $whenLabel") else Titles(kind, whenLabel)
-    }
+     *  with nobody known, what and when. [kind] is already in the phone's
+     *  language ("Phone call", "WhatsApp call", "Message"). */
+    fun titles(caller: String?, kind: String, whenLabel: String): Titles =
+        if (caller != null) Titles(caller, "$kind · $whenLabel") else Titles(kind, whenLabel)
 
     /** What the controls show now: the user's choice (2026-10-23) - the name
-     *  once the phone is unlocked, nothing of it while it is locked. */
-    fun shown(unlocked: Titles, locked: Boolean): Titles = if (locked) Titles(LOCKED_TITLE, null) else unlocked
+     *  once the phone is unlocked, nothing of it while it is locked.
+     *  [lockedTitle] is the localised lock-screen title ("Call recording"). */
+    fun shown(unlocked: Titles, locked: Boolean, lockedTitle: String): Titles =
+        if (locked) Titles(lockedTitle, null) else unlocked
 
     data class Titles(val title: String, val subtitle: String?)
 

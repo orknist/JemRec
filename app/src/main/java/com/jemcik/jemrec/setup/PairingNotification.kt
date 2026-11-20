@@ -9,6 +9,7 @@ import android.content.Context
 import android.content.Intent
 import android.provider.Settings
 import android.util.Log
+import com.jemcik.jemrec.R
 import com.jemcik.jemrec.ui.PairingService
 
 /**
@@ -64,7 +65,7 @@ object PairingNotification {
         manager.createNotificationChannel(
             NotificationChannel(
                 CHANNEL_ID,
-                "Pairing",
+                context.getString(R.string.pairing),
                 // HIGH so it is easy to find in a shade opened over Settings.
                 // Silent, because it appears while the user is mid-task.
                 NotificationManager.IMPORTANCE_HIGH,
@@ -76,16 +77,12 @@ object PairingNotification {
             }
         )
 
+        val defaultShort = context.getString(R.string.open_the_pairing_dialog_then_type_the_code_here)
+        val defaultLong = context.getString(R.string.pairing_big_text)
         val builder = Notification.Builder(context, CHANNEL_ID)
-            .setContentTitle("JemRec — pairing")
-            .setContentText(text ?: "Open the pairing dialog, then type the code here.")
-            .setStyle(
-                Notification.BigTextStyle().bigText(
-                    text ?: "In Settings, open Wireless debugging and tap \"Pair device " +
-                        "with pairing code\". Then swipe this shade down over it and type " +
-                        "the six digits here — you never have to leave the dialog."
-                )
-            )
+            .setContentTitle(context.getString(R.string.pair_title))
+            .setContentText(text ?: defaultShort)
+            .setStyle(Notification.BigTextStyle().bigText(text ?: defaultLong))
             .setSmallIcon(android.R.drawable.ic_menu_send)
             // The words change as the service watches the switches. Each change
             // must not re-alert, or the shade would buzz on every update.
@@ -94,7 +91,7 @@ object PairingNotification {
 
         if (withReply) {
             val remoteInput = RemoteInput.Builder(KEY_CODE)
-                .setLabel("6-digit code")
+                .setLabel(context.getString(R.string.s_6_digit_code))
                 .build()
 
             // Delivered STRAIGHT to the foreground service, the way Shizuku does
@@ -112,7 +109,7 @@ object PairingNotification {
 
             builder.addAction(
                 Notification.Action.Builder(
-                    android.R.drawable.ic_menu_send, "Enter code", pending,
+                    android.R.drawable.ic_menu_send, context.getString(R.string.enter_code), pending,
                 ).addRemoteInput(remoteInput).build()
             )
         }

@@ -1,5 +1,8 @@
 package com.jemcik.jemrec.ui
 
+import android.content.res.Resources
+import androidx.annotation.StringRes
+import com.jemcik.jemrec.R
 import com.jemcik.jemrec.calls.CallHistory
 import com.jemcik.jemrec.calls.CallHistory.Status
 import com.jemcik.jemrec.calls.VoipApps
@@ -35,15 +38,23 @@ internal enum class ChipKind { SEARCH, FAVORITES, SOURCE, KEPT, MESSAGES, NOT_RE
 /** A chip; a SOURCE chip says which: [PHONE_SOURCE] or a messenger's tag. */
 internal data class ListChip(val kind: ChipKind, val source: String? = null)
 
+/** A chip's fixed name as a string resource, or null when the name is an
+ *  app label (WhatsApp) or otherwise not in resources. */
+@StringRes
+internal fun chipNameRes(chip: ListChip): Int? = when (chip.kind) {
+    ChipKind.SEARCH -> R.string.chip_search
+    ChipKind.FAVORITES -> R.string.chip_favourites
+    ChipKind.SOURCE -> if (chip.source == PHONE_SOURCE) R.string.chip_phone else null
+    ChipKind.KEPT -> R.string.chip_kept
+    ChipKind.MESSAGES -> R.string.chip_messages
+    ChipKind.NOT_RECORDED -> R.string.chip_not_recorded
+}
+
 /** A chip's name in words: on the side panel's chips (WordChip), and in the
  *  line that says what narrows a list (narrowedBy) - one name for both. */
-internal fun chipName(chip: ListChip): String = when (chip.kind) {
-    ChipKind.SEARCH -> "Search"
-    ChipKind.FAVORITES -> "Favourites"
-    ChipKind.SOURCE -> chip.source.let { if (it == PHONE_SOURCE) "Phone" else VoipApps.labelForTag(it) ?: it.orEmpty() }
-    ChipKind.KEPT -> "Kept"
-    ChipKind.MESSAGES -> "Messages"
-    ChipKind.NOT_RECORDED -> "Not recorded"
+internal fun chipName(chip: ListChip, res: Resources): String {
+    chipNameRes(chip)?.let { return res.getString(it) }
+    return chip.source.let { VoipApps.labelForTag(it) ?: it.orEmpty() }
 }
 
 /**
@@ -52,9 +63,9 @@ internal fun chipName(chip: ListChip): String = when (chip.kind) {
  * typed into search, in quotes. Empty when nothing narrows: search open with
  * nothing typed leaves every row.
  */
-internal fun narrowedBy(on: Set<ListChip>, query: String): List<String> = buildList {
+internal fun narrowedBy(on: Set<ListChip>, query: String, res: Resources): List<String> = buildList {
     ChipKind.entries.filter { it != ChipKind.SEARCH }.forEach { kind ->
-        on.filter { it.kind == kind }.forEach { add(chipName(it)) }
+        on.filter { it.kind == kind }.forEach { add(chipName(it, res)) }
     }
     query.trim().takeIf { it.isNotEmpty() }?.let { add("\u201C$it\u201D") }
 }

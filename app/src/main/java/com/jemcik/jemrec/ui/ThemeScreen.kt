@@ -1,5 +1,6 @@
 package com.jemcik.jemrec.ui
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -9,43 +10,49 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.jemcik.jemrec.R
 import com.jemcik.jemrec.ui.theme.LightDark
 import com.jemcik.jemrec.ui.theme.LocalLookChoice
 import com.jemcik.jemrec.ui.theme.Look
 
-internal fun lookName(look: Look): String = when (look) {
-    Look.MEMO -> "Memo"
-    Look.DECK -> "Deck"
-    Look.MULTITRACK -> "Multitrack"
+@StringRes
+internal fun lookNameRes(look: Look): Int = when (look) {
+    Look.MEMO -> R.string.theme_memo
+    Look.DECK -> R.string.theme_deck
+    Look.MULTITRACK -> R.string.theme_multitrack
 }
 
 /** Android's own words: its dark theme guide offers "Light", "Dark" and
  *  "System default (the recommended default option)" (developer.android.com,
  *  Dark theme). "Same as phone" did not fit its button (the user,
  *  2026-10-23). */
-internal fun lightDarkWord(lightDark: LightDark): String = when (lightDark) {
-    LightDark.PHONE -> "System"
-    LightDark.LIGHT -> "Light"
-    LightDark.DARK -> "Dark"
+@StringRes
+internal fun lightDarkWordRes(lightDark: LightDark): Int = when (lightDark) {
+    LightDark.PHONE -> R.string.theme_system
+    LightDark.LIGHT -> R.string.theme_light
+    LightDark.DARK -> R.string.theme_dark
 }
 
 /** The same in Settings' summary line, where "Deck · system" said too little. */
-internal fun lightDarkSummary(lightDark: LightDark): String = when (lightDark) {
-    LightDark.PHONE -> "system default"
-    else -> lightDarkWord(lightDark).lowercase()
+@StringRes
+internal fun lightDarkSummaryRes(lightDark: LightDark): Int = when (lightDark) {
+    LightDark.PHONE -> R.string.theme_system_default_summary
+    LightDark.LIGHT -> R.string.theme_light_summary
+    LightDark.DARK -> R.string.theme_dark_summary
 }
 
 /** In the guide's order, the phone's own last. */
 private val LIGHT_DARK = listOf(LightDark.LIGHT, LightDark.DARK, LightDark.PHONE)
 
-/** One line each: two read as a paragraph under a button (the user,
- *  2026-10-23). */
-private fun blurb(look: Look): String = when (look) {
-    Look.MEMO -> "Calm and simple, one big record button"
-    Look.DECK -> "A pocket recorder, an LCD and a REC key"
-    Look.MULTITRACK -> "A sound editor, a colour for each caller"
+@StringRes
+private fun blurbRes(look: Look): Int = when (look) {
+    Look.MEMO -> R.string.theme_memo_blurb
+    Look.DECK -> R.string.theme_deck_blurb
+    Look.MULTITRACK -> R.string.theme_multitrack_blurb
 }
 
 /**
@@ -66,10 +73,11 @@ private fun blurb(look: Look): String = when (look) {
  */
 @Composable
 internal fun ThemeScreen(vm: MainViewModel) {
+    val context = LocalContext.current
     val chosen = LocalLookChoice.current
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(
-            "All three work the same; only the look changes.",
+            stringResource(R.string.theme_all_same),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -77,25 +85,25 @@ internal fun ThemeScreen(vm: MainViewModel) {
         ConnectedChoices(
             choices = Look.entries,
             selected = chosen.look,
-            label = ::lookName,
+            label = { context.getString(lookNameRes(it)) },
             onChoose = vm::setLook,
         )
         Text(
-            blurb(chosen.look),
+            stringResource(blurbRes(chosen.look)),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth(),
         )
-        SettingsHeading("Light or dark", top = 12.dp)
+        SettingsHeading(stringResource(R.string.theme_light_or_dark), top = 12.dp)
         ConnectedChoices(
             choices = LIGHT_DARK,
             selected = chosen.lightDark,
-            label = ::lightDarkWord,
+            label = { context.getString(lightDarkWordRes(it)) },
             onChoose = vm::setLightDark,
         )
         Text(
-            "Notifications and the tile always follow the phone.",
+            stringResource(R.string.theme_notif_follow_phone),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

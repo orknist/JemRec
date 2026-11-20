@@ -89,14 +89,14 @@ class PairingServiceTest {
     }
 
     @Test fun cutShortPairingItSaysPairingDidNotFinish() {
-        assertEquals(timedOut(PairingService.Stage.PAIRING) to true, cappedAt("pair"))
+        assertEquals(timedOut(app, PairingService.Stage.PAIRING) to true, cappedAt("pair"))
     }
 
     @Test fun cutShortConnectingItSaysItCouldNotConnect() {
-        assertEquals(timedOut(PairingService.Stage.CONNECTING) to false, cappedAt("connect"))
+        assertEquals(timedOut(app, PairingService.Stage.CONNECTING) to false, cappedAt("connect"))
     }
 
     @Test fun cutShortInSetupsLastStepItSaysSetupDidNotFinish() {
-        assertEquals(timedOut(PairingService.Stage.FINISHING) to false, cappedAt("finish"))
+        assertEquals(timedOut(app, PairingService.Stage.FINISHING) to false, cappedAt("finish"))
     }
 }

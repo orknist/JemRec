@@ -1,32 +1,44 @@
 package com.jemcik.jemrec.ui
 
+import androidx.test.core.app.ApplicationProvider
 import com.jemcik.jemrec.answering.AnswerDiagnostics
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+import org.robolectric.annotation.ConscryptMode
 import java.util.Locale
 import java.util.TimeZone
 
 /** The answering machine's row in Settings, and why its switch may be off. */
+@RunWith(RobolectricTestRunner::class)
+@ConscryptMode(ConscryptMode.Mode.OFF)
+@Config(sdk = [36])
 class AnswerSummaryTest {
+
+    private val ctx = ApplicationProvider.getApplicationContext<android.content.Context>()
+
+    private val res = ApplicationProvider.getApplicationContext<android.content.Context>().resources
 
     private val passed = AnswerDiagnostics.StageOne(permissions = true, inCallMusic = true, screening = false, describe = "")
     private val failed = passed.copy(inCallMusic = false)
 
     @Test fun theRowSaysWhatItDoes() {
-        assertEquals("Off", answerSummary(AnswerUi()))
+        assertEquals("Off", answerSummary(ctx, AnswerUi()))
         assertEquals(
             "After 20 seconds - not tested on this phone yet",
-            answerSummary(AnswerUi(enabled = true, stageOne = passed)),
+            answerSummary(ctx, AnswerUi(enabled = true, stageOne = passed)),
         )
         assertEquals(
             "After 10 seconds",
-            answerSummary(AnswerUi(enabled = true, delay = 10, results = mapOf("2G" to AnswerDiagnostics.Verdict.LIKELY))),
+            answerSummary(ctx, AnswerUi(enabled = true, delay = 10, results = mapOf("2G" to AnswerDiagnostics.Verdict.LIKELY))),
         )
-        assertEquals("Not available on this phone", answerSummary(AnswerUi(stageOne = failed)))
-        assertEquals("Paused after an emergency call", answerSummary(AnswerUi(enabled = true, pausedUntil = 1L)))
+        assertEquals("Not available on this phone", answerSummary(ctx, AnswerUi(stageOne = failed)))
+        assertEquals("Paused after an emergency call", answerSummary(ctx, AnswerUi(enabled = true, pausedUntil = 1L)))
         // Off, it is just off.
-        assertEquals("Off", answerSummary(AnswerUi(pausedUntil = 1L)))
+        assertEquals("Off", answerSummary(ctx, AnswerUi(pausedUntil = 1L)))
     }
 
     /** Cleared by an update, it says so - not "not tested" - until a test is
@@ -34,27 +46,27 @@ class AnswerSummaryTest {
     @Test fun testsAnUpdateClearedAreSaidSo() {
         assertEquals(
             "After 20 seconds - test again after the update",
-            answerSummary(AnswerUi(enabled = true, cleared = AnswerDiagnostics.Cleared.ROUTES)),
+            answerSummary(ctx, AnswerUi(enabled = true, cleared = AnswerDiagnostics.Cleared.ROUTES)),
         )
         assertEquals(
             "After 20 seconds - test again after the update",
-            answerSummary(
+            answerSummary(ctx, 
                 AnswerUi(enabled = true, results = mapOf("2G" to AnswerDiagnostics.Verdict.WORKS), cleared = AnswerDiagnostics.Cleared.VOLTE),
             ),
         )
-        assertEquals("Not tested on this phone yet", testedSummary(AnswerUi()))
-        assertEquals("Works on 2G", testedSummary(AnswerUi(results = mapOf("2G" to AnswerDiagnostics.Verdict.WORKS))))
+        assertEquals("Not tested on this phone yet", testedSummary(AnswerUi(), res))
+        assertEquals("Works on 2G", testedSummary(AnswerUi(results = mapOf("2G" to AnswerDiagnostics.Verdict.WORKS)), res))
         assertEquals(
             "Works on 2G. Your VoLTE test was cleared: before 0.31 a test over Wi-Fi Calling could be filed as VoLTE. Test again",
-            testedSummary(AnswerUi(results = mapOf("2G" to AnswerDiagnostics.Verdict.WORKS), cleared = AnswerDiagnostics.Cleared.VOLTE)),
+            testedSummary(AnswerUi(results = mapOf("2G" to AnswerDiagnostics.Verdict.WORKS), cleared = AnswerDiagnostics.Cleared.VOLTE), res),
         )
         assertEquals(
             "Your VoLTE test was cleared: before 0.31 a test over Wi-Fi Calling could be filed as VoLTE. Test again",
-            testedSummary(AnswerUi(cleared = AnswerDiagnostics.Cleared.VOLTE)),
+            testedSummary(AnswerUi(cleared = AnswerDiagnostics.Cleared.VOLTE), res),
         )
         assertEquals(
             "Your tests were cleared: since 0.31 the greeting's way to the caller follows the call. Test again",
-            testedSummary(AnswerUi(cleared = AnswerDiagnostics.Cleared.ROUTES)),
+            testedSummary(AnswerUi(cleared = AnswerDiagnostics.Cleared.ROUTES), res),
         )
     }
 
@@ -72,11 +84,11 @@ class AnswerSummaryTest {
     }
 
     @Test fun theSwitchWaitsForTheChecksTrackingAndAGreeting() {
-        assertEquals("Run the checks below first", AnswerUi().blocked)
-        assertEquals(failed.problem, AnswerUi(stageOne = failed).blocked)
-        assertEquals("Needs exact call tracking, in Settings", AnswerUi(stageOne = passed, callTracking = false).blocked)
-        assertEquals("Record a greeting first", AnswerUi(stageOne = passed).blocked)
-        assertNull(AnswerUi(stageOne = passed, greetingSeconds = 6.0).blocked)
+        assertEquals("Run the checks below first", AnswerUi().blocked(res))
+        assertEquals(failed.problemText(res), AnswerUi(stageOne = failed).blocked(res))
+        assertEquals("Needs exact call tracking, in Settings", AnswerUi(stageOne = passed, callTracking = false).blocked(res))
+        assertEquals("Record a greeting first", AnswerUi(stageOne = passed).blocked(res))
+        assertNull(AnswerUi(stageOne = passed, greetingSeconds = 6.0).blocked(res))
     }
 
     @Test fun theCarriersTimerIsReadOnlyWhenOn() {

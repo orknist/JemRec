@@ -13,6 +13,7 @@ import android.util.Log
 import androidx.core.content.edit
 import androidx.core.net.toUri
 import com.jemcik.jemrec.DeepLink
+import com.jemcik.jemrec.R
 import com.jemcik.jemrec.Prefs
 import com.jemcik.jemrec.capture.AfterCallReceiver
 import com.jemcik.jemrec.capture.AudioCheck
@@ -209,7 +210,7 @@ internal object AfterCall {
         if (!problem && !call.message && !enabled(context)) return false
         ensureChannels(context)
 
-        val who = call.caller ?: if (call.incoming) "Incoming call" else "Outgoing call"
+        val who = call.caller ?: context.getString(if (call.incoming) R.string.after_incoming else R.string.after_outgoing)
         val length = length(call.seconds)
         val channel = channelFor(call)
         val builder = Notification.Builder(context, channel)
@@ -228,11 +229,13 @@ internal object AfterCall {
                 Notification.Builder(context, channel)
                     .setSmallIcon(android.R.drawable.ic_btn_speak_now)
                     .setContentTitle(
-                        when {
-                            problem -> "A call recording needs a look"
-                            call.message -> "New message"
-                            else -> "Call recorded"
-                        },
+                        context.getString(
+                            when {
+                                problem -> R.string.after_needs_look
+                                call.message -> R.string.after_new_message
+                                else -> R.string.after_call_recorded
+                            },
+                        ),
                     )
                     .build(),
             )
@@ -242,29 +245,31 @@ internal object AfterCall {
         when {
             call.message -> {
                 // Kept until dismissed: a message is not stale after half a day.
-                builder.setContentTitle(call.caller?.let { "Message from $it" } ?: "New message")
-                    .setContentText("$length message")
+                builder.setContentTitle(
+                    call.caller?.let { context.getString(R.string.after_message_from, it) }
+                        ?: context.getString(R.string.after_new_message),
+                )
+                    .setContentText(context.getString(R.string.after_message_length, length))
                     .setTimeoutAfter(0)
-                    .addAction(action("Play", open(context, DeepLink.Kind.PLAY, call.name, request = 1)))
-                    .addAction(action("Share", open(context, DeepLink.Kind.SHARE, call.name, request = 2)))
-                    .addAction(action("Delete", receiver(context, ACTION_DELETE_ASK, call), unlocked = true))
+                    .addAction(action(context.getString(R.string.after_play), open(context, DeepLink.Kind.PLAY, call.name, request = 1)))
+                    .addAction(action(context.getString(R.string.after_share), open(context, DeepLink.Kind.SHARE, call.name, request = 2)))
+                    .addAction(action(context.getString(R.string.after_delete), receiver(context, ACTION_DELETE_ASK, call), unlocked = true))
             }
             problem -> {
-                val text = "$who, $length. No sound came through. This happens on calls over " +
-                    "Wi-Fi calling, and on some phones always. Run the self-test to check this phone."
-                builder.setContentTitle("Last call recorded, but silent")
+                val text = context.getString(R.string.after_silent_body, who, length)
+                builder.setContentTitle(context.getString(R.string.after_silent_title))
                     .setContentText(text)
                     .setStyle(Notification.BigTextStyle().bigText(text))
-                    .addAction(action("Play", open(context, DeepLink.Kind.PLAY, call.name, request = 1)))
-                    .addAction(action("Self-test", open(context, DeepLink.Kind.SELF_TEST, null, request = 3)))
-                    .addAction(action("Delete", receiver(context, ACTION_DELETE_ASK, call), unlocked = true))
+                    .addAction(action(context.getString(R.string.after_play), open(context, DeepLink.Kind.PLAY, call.name, request = 1)))
+                    .addAction(action(context.getString(R.string.after_self_test), open(context, DeepLink.Kind.SELF_TEST, null, request = 3)))
+                    .addAction(action(context.getString(R.string.after_delete), receiver(context, ACTION_DELETE_ASK, call), unlocked = true))
             }
             else -> {
                 builder.setContentTitle(who)
-                    .setContentText("Recorded, $length")
-                    .addAction(action("Play", open(context, DeepLink.Kind.PLAY, call.name, request = 1)))
-                    .addAction(action("Share", open(context, DeepLink.Kind.SHARE, call.name, request = 2)))
-                    .addAction(action("Delete", receiver(context, ACTION_DELETE_ASK, call), unlocked = true))
+                    .setContentText(context.getString(R.string.after_recorded_length, length))
+                    .addAction(action(context.getString(R.string.after_play), open(context, DeepLink.Kind.PLAY, call.name, request = 1)))
+                    .addAction(action(context.getString(R.string.after_share), open(context, DeepLink.Kind.SHARE, call.name, request = 2)))
+                    .addAction(action(context.getString(R.string.after_delete), receiver(context, ACTION_DELETE_ASK, call), unlocked = true))
             }
         }
         post(context, builder.build(), idFor(call))
@@ -325,11 +330,12 @@ internal object AfterCall {
     /** The second tap: the notification turns into the question. */
     fun askDelete(context: Context, call: Call) {
         ensureChannels(context)
-        val text = "Delete the recording of this call? It goes to Recently deleted, where it " +
-            "can be restored for ${Trash.DAYS} days."
+        val text = context.getString(R.string.after_delete_call_body, Trash.DAYS)
         val notification = Notification.Builder(context, channelFor(call))
             .setSmallIcon(android.R.drawable.ic_menu_delete)
-            .setContentTitle(call.caller ?: if (call.incoming) "Incoming call" else "Outgoing call")
+            .setContentTitle(
+                call.caller ?: context.getString(if (call.incoming) R.string.after_incoming else R.string.after_outgoing),
+            )
             .setContentText(text)
             .setStyle(Notification.BigTextStyle().bigText(text))
             .setWhen(call.startMillis)
@@ -343,8 +349,8 @@ internal object AfterCall {
             // setAuthenticationRequired, Android 12): a broadcast runs from the
             // lock screen otherwise, and two taps there - by whoever holds the
             // locked phone - put the call in the trash.
-            .addAction(action("Delete", receiver(context, ACTION_DELETE_CONFIRM, call), unlocked = true))
-            .addAction(action("Keep", receiver(context, ACTION_DELETE_CANCEL, call)))
+            .addAction(action(context.getString(R.string.after_delete), receiver(context, ACTION_DELETE_CONFIRM, call), unlocked = true))
+            .addAction(action(context.getString(R.string.after_keep), receiver(context, ACTION_DELETE_CANCEL, call)))
             .build()
         post(context, notification, idFor(call))
     }
@@ -358,8 +364,8 @@ internal object AfterCall {
             is DeleteResult.Deleted -> RecordingLibrary.announce(call.name)
             // MediaStore wants the user to confirm in a system dialog, which
             // only an activity can show. The list can.
-            is DeleteResult.NeedsConsent -> note(context, "Open JemRec to delete this recording.", call)
-            is DeleteResult.Failed -> note(context, "Could not delete the recording.", call)
+            is DeleteResult.NeedsConsent -> note(context, context.getString(R.string.after_open_to_delete), call)
+            is DeleteResult.Failed -> note(context, context.getString(R.string.after_could_not_delete), call)
         }
     }
 
@@ -374,7 +380,7 @@ internal object AfterCall {
             context,
             Notification.Builder(context, channelFor(call))
                 .setSmallIcon(android.R.drawable.ic_btn_speak_now)
-                .setContentTitle("JemRec")
+                .setContentTitle(context.getString(R.string.app_name))
                 .setContentText(text)
                 .addExtras(recordingOf(call))
                 .setOnlyAlertOnce(true)
@@ -470,15 +476,14 @@ internal object AfterCall {
     private const val NOT_RECORDED_ID = 31
 
     /** Why an answered call kept nothing: the greeting would not play. */
-    const val GREETING_FAILED = "The answering machine answered a call, but could not play your " +
-        "greeting, so it hung up. Run the test call in Settings, Answering machine."
+    fun greetingFailedReason(context: Context) = context.getString(R.string.after_greeting_failed)
 
     /** Why a saved call kept nothing: no call audio in it. */
-    const val NO_AUDIO = "No call audio came through. Some phones do not allow calls to be recorded."
+    fun noAudioReason(context: Context) = context.getString(R.string.after_no_audio)
 
     /** The title of a part's failure, told at the call's end
      *  (CallMonitorService.saveCall; AfterSave.Collector.PART). */
-    const val PART_NOT_SAVED = "Part of a call not saved"
+    fun partNotSavedTitle(context: Context) = context.getString(R.string.after_part_not_saved)
 
     /** The recorder's files the failure up is about (postNotRecorded). */
     private const val KEY_NOT_RECORDED_FOR = "not_recorded_for"
@@ -533,7 +538,7 @@ internal object AfterCall {
     /** "Call not recorded", with [reason]: from the call service at a hang-up,
      *  or from a collection that found out later (RecordingSaver.reconcile);
      *  [title] another, a part's (PART_NOT_SAVED). */
-    fun postNotRecorded(context: Context, reason: String, title: String = "Call not recorded") {
+    fun postNotRecorded(context: Context, reason: String, title: String = context.getString(R.string.after_call_not_recorded)) {
         runCatching {
             // A collection can get here before the call service ever ran:
             // problem makes sure the channel exists.
@@ -579,8 +584,8 @@ internal object AfterCall {
         val manager = context.getSystemService(NotificationManager::class.java)
         runCatching { manager.deleteNotificationChannel(LEGACY_CHANNEL_ID) }
         manager.createNotificationChannel(
-            NotificationChannel(CHANNEL_ID, "After a call", NotificationManager.IMPORTANCE_DEFAULT).apply {
-                description = "The recording of the call that just ended, with Play, Share and Delete"
+            NotificationChannel(CHANNEL_ID, context.getString(R.string.after_channel), NotificationManager.IMPORTANCE_DEFAULT).apply {
+                description = context.getString(R.string.after_channel_desc)
                 // Seen, not heard: the status-bar icon is the point, a chime
                 // after every call is not.
                 setSound(null, null)
@@ -589,15 +594,15 @@ internal object AfterCall {
             },
         )
         manager.createNotificationChannel(
-            NotificationChannel(MESSAGE_CHANNEL_ID, "Messages", NotificationManager.IMPORTANCE_DEFAULT).apply {
-                description = "A message the answering machine took, with Play, Share and Delete"
+            NotificationChannel(MESSAGE_CHANNEL_ID, context.getString(R.string.after_messages_channel), NotificationManager.IMPORTANCE_DEFAULT).apply {
+                description = context.getString(R.string.after_messages_desc)
             },
         )
         // The same channel CallMonitorService creates for "Call not recorded":
         // one place in Android's settings for everything that went wrong.
         manager.createNotificationChannel(
-            NotificationChannel(PROBLEM_CHANNEL_ID, "Recording problems", NotificationManager.IMPORTANCE_DEFAULT).apply {
-                description = "When a call goes unrecorded, or something stops JemRec recording"
+            NotificationChannel(PROBLEM_CHANNEL_ID, context.getString(R.string.after_problems_channel), NotificationManager.IMPORTANCE_DEFAULT).apply {
+                description = context.getString(R.string.after_problems_desc)
             },
         )
     }

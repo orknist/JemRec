@@ -2,6 +2,7 @@ package com.jemcik.jemrec.recorder
 
 import android.content.Context
 import android.util.Log
+import com.jemcik.jemrec.R
 import com.jemcik.jemrec.answering.AnsweringMachine
 import com.jemcik.jemrec.answering.EmergencyPause
 import com.jemcik.jemrec.audio.AudioStream
@@ -84,26 +85,28 @@ object SelfTest {
      */
     internal const val HEARD_SLACK_MS = 2_000L
 
-    private const val RESTART = "Restart the phone, then open JemRec on Wi-Fi."
-
     data class Result(val passed: Boolean, val report: String)
 
     suspend fun run(context: Context): Result = withContext(Dispatchers.IO) {
         val lines = mutableListOf<String>()
+        val restart = context.getString(R.string.selftest_restart_wifi)
 
         val answer = CaptureDaemon.answer(context)
             ?: return@withContext Result(
                 passed = false,
                 report = buildString {
-                    appendLine("FAIL - the recorder is not answering")
+                    appendLine(context.getString(R.string.selftest_not_answering))
                     appendLine()
-                    appendLine("Nothing is listening on 127.0.0.1:${CaptureDaemon.PORT}.")
-                    appendLine("Connect to any Wi-Fi - it restarts on its own.")
+                    appendLine(context.getString(R.string.selftest_nothing_listening, CaptureDaemon.PORT))
+                    appendLine(context.getString(R.string.selftest_connect_wifi))
                 },
             )
-        lines += "recorder:  answering on 127.0.0.1:${CaptureDaemon.PORT}"
+        lines += context.getString(R.string.selftest_line_recorder, CaptureDaemon.PORT)
         val current = CaptureDaemon.isCurrent(context, answer)
-        if (!current) lines += "build:     ${answer.build}, older than this app"
+        if (!current) lines += context.getString(R.string.selftest_line_build, answer.build)
+
+        val errNoConfig = context.getString(R.string.selftest_err_no_config)
+        val errNoAudio = context.getString(R.string.selftest_err_no_audio)
 
         val outcome = timed(TIMEOUT_MS) {
             AudioStream(CaptureDaemon.connect(context)).use { stream ->
@@ -111,11 +114,9 @@ object SelfTest {
                 // is no container to write, so a capture that cannot
                 // produce one cannot record a call either.
                 val config = stream.readPacket()
-                require(config != null && config.isConfig) {
-                    "no config packet; the capture did not start"
-                }
-                lines += "codec:     ${stream.codecId}"
-                lines += "config:    ${config.data.size} bytes"
+                require(config != null && config.isConfig) { errNoConfig }
+                lines += context.getString(R.string.selftest_line_codec, stream.codecId)
+                lines += context.getString(R.string.selftest_line_config, config.data.size)
 
                 var packets = 0
                 var bytes = 0
@@ -125,8 +126,8 @@ object SelfTest {
                     packets++
                     bytes += packet.data.size
                 }
-                require(packets > 0) { "the capture opened but produced no audio" }
-                lines += "audio:     $packets packets, $bytes bytes"
+                require(packets > 0) { errNoAudio }
+                lines += context.getString(R.string.selftest_line_audio, packets, bytes)
             }
         }
 
@@ -138,12 +139,12 @@ object SelfTest {
             outcome == null -> return@withContext Result(
                 passed = false,
                 report = buildString {
-                    appendLine("FAIL - the recorder did not answer in time")
+                    appendLine(context.getString(R.string.selftest_fail_timeout))
                     appendLine()
                     lines.forEach { appendLine(it) }
                     appendLine()
-                    appendLine("If a call is in progress this is expected: the")
-                    appendLine("recording has the audio source, and the call keeps it.")
+                    appendLine(context.getString(R.string.selftest_expected_during_call_1))
+                    appendLine(context.getString(R.string.selftest_expected_during_call_2))
                 },
             )
 
@@ -152,7 +153,12 @@ object SelfTest {
                 return@withContext Result(
                     passed = false,
                     report = buildString {
-                        appendLine("FAIL - ${outcome.exceptionOrNull()?.message}")
+                        appendLine(
+                            context.getString(
+                                R.string.selftest_fail_with_reason,
+                                outcome.exceptionOrNull()?.message,
+                            ),
+                        )
                         appendLine()
                         lines.forEach { appendLine(it) }
                     },
@@ -162,13 +168,19 @@ object SelfTest {
 
         // The capture works. Whether anything will ever start it is the
         // daemon's call watch, asked about next.
-        val problem = watchProblem(context, current, lines)
+        val problem = watchProblem(context, current, lines, restart)
         Result(
             passed = problem == null,
             report = buildString {
                 appendLine(
-                    if (problem != null) "FAIL - $problem"
-                    else "PASS - ${verdict(CaptureDaemon.currentMode(context))}",
+                    if (problem != null) {
+                        context.getString(R.string.selftest_fail_with_reason, problem)
+                    } else {
+                        context.getString(
+                            R.string.selftest_pass_with_verdict,
+                            verdict(context, CaptureDaemon.currentMode(context)),
+                        )
+                    },
                 )
                 appendLine()
                 lines.forEach { appendLine(it) }
@@ -184,34 +196,41 @@ object SelfTest {
         context: Context,
         current: Boolean,
         lines: MutableList<String>,
+        restart: String,
     ): String? {
         val watch = CaptureDaemon.watch(context)
         if (watch == null) {
-            if (current) return "the recorder would not say whether it hears calls"
+            if (current) return context.getString(R.string.selftest_problem_no_hears)
             // Every build too old to give this report is one whose watch could
             // be garbage-collected: it may be deaf right now, and nothing short
             // of a call can tell. A revive replaces it, so one is asked for now
             // rather than at the next keep-alive tick, up to fifteen minutes on.
             RecorderLifecycle.arm(context, Trigger.SELF_TEST)
-            return "this recorder is an older build that can stop noticing calls. " +
-                "JemRec replaces it as soon as the phone is on Wi-Fi."
+            return context.getString(R.string.selftest_problem_old_build)
         }
-        lines += "watching:  since ${at(watch.since)}"
-        if (!watch.watching) return "the recorder is not watching for calls. $RESTART"
-        if (!watch.looperOk) return "the recorder has stopped handling calls. $RESTART"
-        lines += "heard:     " + calls(watch.offHooks) +
-            if (watch.lastOffHook > 0) ", last at ${at(watch.lastOffHook)}" else ""
+        lines += context.getString(R.string.selftest_line_watching, at(watch.since))
+        if (!watch.watching) return context.getString(R.string.selftest_problem_not_watching, restart)
+        if (!watch.looperOk) return context.getString(R.string.selftest_problem_looper, restart)
+        lines += context.getString(R.string.selftest_line_heard, calls(context, watch.offHooks)) +
+            if (watch.lastOffHook > 0) context.getString(R.string.selftest_line_heard_last, at(watch.lastOffHook)) else ""
 
         // A daemon that missed a push records by the wrong rule - or, since it
         // fails closed, not at all - and still passes everything above. One
         // round trip puts it right.
         val wanted = CaptureDaemon.currentMode(context)
         when {
-            watch.mode == wanted -> lines += "mode:      ${modeName(wanted)}"
+            watch.mode == wanted -> lines += context.getString(R.string.selftest_line_mode, modeName(context, wanted))
             CaptureDaemon.sendMode(context) ->
-                lines += "mode:      ${modeName(wanted)} (was ${modeName(watch.mode)}, corrected)"
-            else -> return "the recorder is set to \"${modeName(watch.mode)}\", " +
-                "not \"${modeName(wanted)}\""
+                lines += context.getString(
+                    R.string.selftest_line_mode_corrected,
+                    modeName(context, wanted),
+                    modeName(context, watch.mode),
+                )
+            else -> return context.getString(
+                R.string.selftest_problem_wrong_mode,
+                modeName(context, watch.mode),
+                modeName(context, wanted),
+            )
         }
 
         // A daemon that believes a call is up when none is has lost the end of
@@ -224,34 +243,33 @@ object SelfTest {
                 !CaptureDaemon.callInProgress(context)
             ) {
                 return if (again.recordingSince > 0) {
-                    "a recording has run since ${at(again.recordingSince)} with no call in progress. $RESTART"
+                    context.getString(R.string.selftest_problem_stuck_recording, at(again.recordingSince), restart)
                 } else {
-                    "the recorder thinks a call is still going on, and none is. $RESTART"
+                    context.getString(R.string.selftest_problem_phantom_call, restart)
                 }
             }
         }
 
-        messengerCalls(context, watch, lines)?.let { return it }
-        callTracking(context, watch, lines)?.let { return it }
-        answeringMachine(context, watch, lines)?.let { return it }
+        messengerCalls(context, watch, lines, restart)?.let { return it }
+        callTracking(context, watch, lines, restart)?.let { return it }
+        answeringMachine(context, watch, lines, restart)?.let { return it }
 
         when {
             !CallLogLookup.granted(context) ->
-                lines += "missed:    not checked (no call log access)"
+                lines += context.getString(R.string.selftest_line_missed_no_access)
             CaptureDaemon.callInProgress(context) ->
-                lines += "missed:    not checked during a call"
+                lines += context.getString(R.string.selftest_line_missed_during_call)
             else -> {
                 val starts = runCatching { CallLogLookup.callStartsSince(context, watch.since) }
                     .onFailure { Log.w(TAG, "self-test: could not read the call log", it) }
                     .getOrNull()
                 if (starts == null) {
-                    lines += "missed:    not checked (call log unreadable)"
+                    lines += context.getString(R.string.selftest_line_missed_unreadable)
                 } else {
                     unheardCall(starts, watch.lastEvent)?.let {
-                        return "the recorder did not notice the call at ${at(it)}. " +
-                            "It is running, but not hearing calls. $RESTART"
+                        return context.getString(R.string.selftest_problem_unheard, at(it), restart)
                     }
-                    lines += "missed:    none in the call log"
+                    lines += context.getString(R.string.selftest_line_missed_none)
                 }
             }
         }
@@ -265,37 +283,40 @@ object SelfTest {
      * of messenger calls that would otherwise be silent. One push puts a
      * daemon that missed the list right, as for the mode.
      */
-    private suspend fun messengerCalls(context: Context, watch: CaptureDaemon.Watch, lines: MutableList<String>): String? {
+    private suspend fun messengerCalls(
+        context: Context,
+        watch: CaptureDaemon.Watch,
+        lines: MutableList<String>,
+        restart: String,
+    ): String? {
         if (!VoipApps.supported(context)) {
-            lines += "messenger: not possible - Android here does not let the recorder copy call audio"
+            lines += context.getString(R.string.selftest_line_messenger_impossible)
             return null
         }
         val enabled = VoipApps.enabled(context)
         if (enabled.isEmpty()) {
-            lines += "messenger: none switched on"
+            lines += context.getString(R.string.selftest_line_messenger_none)
             return null
         }
         val labels = messengerNames(enabled)
         if (watch.voipApps == null) {
-            return "this recorder is too old to record messenger calls. $RESTART"
+            return context.getString(R.string.selftest_problem_messenger_old, restart)
         }
         if (watch.voipApps != enabled.size || !watch.voipArmed) {
             val fixed = CaptureDaemon.setVoipApps(context) &&
                 CaptureDaemon.watch(context)?.let { it.voipApps == enabled.size && it.voipArmed } == true
             if (!fixed) {
-                return "messenger calls are switched on for $labels, but the recorder is not ready " +
-                    "to record them. $RESTART"
+                return context.getString(R.string.selftest_problem_messenger_not_ready, labels, restart)
             }
-            lines += "messenger: armed for $labels (corrected)"
+            lines += context.getString(R.string.selftest_line_messenger_armed_corrected, labels)
         } else {
-            lines += "messenger: armed for $labels"
+            lines += context.getString(R.string.selftest_line_messenger_armed, labels)
         }
         if (VoipCallNotes.enabled(context)) {
             if (!DebugNotificationCleaner.accessGranted(context)) {
-                return "Show who called is on, but JemRec no longer has notification access, so " +
-                    "messenger callers will not be named. Turn Show who called off and on again."
+                return context.getString(R.string.selftest_problem_show_who_no_access)
             }
-            lines += "names:     from the apps' call notifications"
+            lines += context.getString(R.string.selftest_line_names)
         }
         return null
     }
@@ -305,18 +326,23 @@ object SelfTest {
      * in force for this app? Off is simply said; a daemon that has not allowed
      * it is told again.
      */
-    private suspend fun callTracking(context: Context, watch: CaptureDaemon.Watch, lines: MutableList<String>): String? {
+    private suspend fun callTracking(
+        context: Context,
+        watch: CaptureDaemon.Watch,
+        lines: MutableList<String>,
+        restart: String,
+    ): String? {
         if (!CallTracking.enabled(context)) {
-            lines += "tracking:  off"
+            lines += context.getString(R.string.selftest_line_tracking_off)
             return null
         }
         if (watch.tracking == null) {
-            lines += "tracking:  not yet - the recorder is older than this app"
+            lines += context.getString(R.string.selftest_line_tracking_not_yet)
             return null
         }
         val corrected = !watch.tracking && CaptureDaemon.setTracking(context)
         if (!watch.tracking && !corrected) {
-            return "exact call tracking is on, but the recorder could not allow it. ${trackingFix()}"
+            return context.getString(R.string.selftest_problem_tracking_daemon, trackingFix(context, restart))
         }
         val inForce = runCatching {
             context.getSystemService(android.app.AppOpsManager::class.java).unsafeCheckOpNoThrow(
@@ -324,9 +350,10 @@ object SelfTest {
             ) == android.app.AppOpsManager.MODE_ALLOWED
         }.getOrDefault(false)
         if (!inForce) {
-            return "exact call tracking is on, but Android has not allowed it for JemRec. ${trackingFix()}"
+            return context.getString(R.string.selftest_problem_tracking_appops, trackingFix(context, restart))
         }
-        lines += "tracking:  on" + if (corrected) " (corrected)" else ""
+        lines += context.getString(R.string.selftest_line_tracking_on) +
+            if (corrected) context.getString(R.string.selftest_suffix_corrected) else ""
         return null
     }
 
@@ -336,20 +363,29 @@ object SelfTest {
      * app-op (ShellGrant; CallVault measured `appops set` refused there), so a
      * restart alone would only be refused again.
      */
-    private fun trackingFix(): String =
-        if (ShellGrant.switchMayBeOff()) "In Developer options, turn on ${ShellGrant.SWITCH}. $RESTART" else RESTART
+    private fun trackingFix(context: Context, restart: String): String =
+        if (ShellGrant.switchMayBeOff()) {
+            context.getString(R.string.selftest_tracking_fix_switch, ShellGrant.switchText(context), restart)
+        } else {
+            restart
+        }
 
     /**
      * The answering machine: switched on here, and does the recorder know it,
      * and hold the greeting? A recorder that does not is given both again.
      */
-    private suspend fun answeringMachine(context: Context, watch: CaptureDaemon.Watch, lines: MutableList<String>): String? {
+    private suspend fun answeringMachine(
+        context: Context,
+        watch: CaptureDaemon.Watch,
+        lines: MutableList<String>,
+        restart: String,
+    ): String? {
         if (!AnsweringMachine.enabled(context)) {
-            lines += "answering: off"
+            lines += context.getString(R.string.selftest_line_answering_off)
             return null
         }
         if (watch.answer == null) {
-            lines += "answering: not yet - the recorder is older than this app"
+            lines += context.getString(R.string.selftest_line_answering_not_yet)
             return null
         }
         var ok = watch.answer && watch.greeting == true
@@ -357,10 +393,12 @@ object SelfTest {
             CaptureDaemon.syncGreeting(context)
             CaptureDaemon.setAnswering(context)
             ok = CaptureDaemon.watch(context)?.let { it.answer == true && it.greeting == true } == true
-            if (!ok) return "the answering machine is on, but the recorder does not have it. $RESTART"
+            if (!ok) return context.getString(R.string.selftest_problem_answering, restart)
         }
-        lines += "answering: on, after ${AnsweringMachine.delay(context)} s, greeting in the recorder" +
-            (EmergencyPause.pausedUntil(context)?.let { ", paused after an emergency call until ${at(it)}" } ?: "")
+        lines += context.getString(R.string.selftest_line_answering_on, AnsweringMachine.delay(context)) +
+            (EmergencyPause.pausedUntil(context)?.let {
+                context.getString(R.string.selftest_line_answering_paused, at(it))
+            } ?: "")
         return null
     }
 
@@ -379,20 +417,22 @@ object SelfTest {
         return latest.takeIf { lastEvent < it - HEARD_SLACK_MS }
     }
 
-    private fun verdict(mode: Int): String = when (mode) {
-        CaptureDaemon.MODE_AUTOMATIC -> "a call would be recorded"
-        CaptureDaemon.MODE_ON_DEMAND -> "you would be asked to record a call"
-        else -> "the recorder works; recording is off"
+    private fun verdict(context: Context, mode: Int): String = when (mode) {
+        CaptureDaemon.MODE_AUTOMATIC -> context.getString(R.string.selftest_verdict_would_record)
+        CaptureDaemon.MODE_ON_DEMAND -> context.getString(R.string.selftest_verdict_ask_first)
+        else -> context.getString(R.string.selftest_verdict_recording_off)
     }
 
     /** In the app's own words for the modes - see MainScreen. */
-    private fun modeName(mode: Int): String = when (mode) {
-        CaptureDaemon.MODE_AUTOMATIC -> "every call"
-        CaptureDaemon.MODE_ON_DEMAND -> "asks first"
-        else -> "off"
+    private fun modeName(context: Context, mode: Int): String = when (mode) {
+        CaptureDaemon.MODE_AUTOMATIC -> context.getString(R.string.selftest_mode_every_call)
+        CaptureDaemon.MODE_ON_DEMAND -> context.getString(R.string.selftest_mode_asks_first)
+        else -> context.getString(R.string.selftest_mode_off)
     }
 
-    private fun calls(n: Int): String = if (n == 1) "1 call" else "$n calls"
+    private fun calls(context: Context, n: Int): String =
+        if (n == 1) context.getString(R.string.selftest_calls_one)
+        else context.getString(R.string.selftest_calls_many, n)
 
     /** "14:05" today, "3 Oct 14:05" before that. */
     private fun at(millis: Long): String {

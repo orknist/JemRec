@@ -3,6 +3,7 @@ package com.jemcik.jemrec.calls
 import android.content.Context
 import android.database.Cursor
 import android.provider.CallLog
+import com.jemcik.jemrec.R
 
 /**
  * The phone's call log, row by row, for every query JemRec makes of it: each
@@ -14,7 +15,7 @@ internal object CallLogRows {
 
     /** What a person sees for a call with neither a name nor a number: a
      *  withheld number is still worth saying so. */
-    const val UNKNOWN = "Unknown number"
+    fun unknown(context: Context): String = context.getString(R.string.unknown_number)
 
     /** One row. A column the query did not ask for reads as 0 or none. */
     data class Row(
@@ -24,11 +25,12 @@ internal object CallLogRows {
         val number: String?,
         val name: String?,
         val country: String?,
+        private val withheldLabel: String,
     ) {
         val incoming: Boolean get() = type == CallLog.Calls.INCOMING_TYPE
 
         /** A name is what a person recognises; the number is the fallback. */
-        val label: String get() = name ?: number ?: UNKNOWN
+        val label: String get() = name ?: number ?: withheldLabel
     }
 
     /** The phone calls among the rows [selection] picks, in [order]. Throws
@@ -40,6 +42,7 @@ internal object CallLogRows {
         args: Array<String>?,
         order: String?,
     ): List<Row> {
+        val withheld = unknown(context)
         val out = mutableListOf<Row>()
         context.contentResolver.query(CallLog.Calls.CONTENT_URI, columns, selection, args, order)?.use { cursor ->
             // A column asked for and not there is the provider's failure.
@@ -60,6 +63,7 @@ internal object CallLogRows {
                     number = cursor.text(number)?.takeIf { it.isNotBlank() },
                     name = cursor.text(name)?.takeIf { it.isNotBlank() },
                     country = cursor.text(country)?.takeIf { it.isNotBlank() },
+                    withheldLabel = withheld,
                 )
             }
         }

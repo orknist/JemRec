@@ -84,7 +84,7 @@ class KeepPairedScreenTest : ScreenTest() {
 
         assertFalse(vm.state.value.pairingKept)
         assertEquals(true, vm.state.value.keepPairedWaiting)
-        assertEquals("Turns on when the recorder is running again", keepPairedSummary(vm.state.value))
+        assertEquals("Turns on when the recorder is running again", keepPairedSummary(app, vm.state.value))
     }
 
     @Test fun aRefusalIsSaid() {
@@ -97,7 +97,7 @@ class KeepPairedScreenTest : ScreenTest() {
 
         assertFalse(vm.state.value.pairingKept)
         assertTrue(vm.state.value.keepPairedRefused)
-        assertEquals("Could not change this: Android refused it", keepPairedSummary(vm.state.value))
+        assertEquals("Could not change this: Android refused it", keepPairedSummary(app, vm.state.value))
     }
 
     @Test fun theSummarySaysWhatAndroidDoesAsTheSwitchStands() {
@@ -105,24 +105,24 @@ class KeepPairedScreenTest : ScreenTest() {
         assertEquals(
             "No pairing is forgotten - nor a computer you allowed for USB debugging. " +
                 "Turned off, one older than Android's limit goes at once",
-            keepPairedSummary(on),
+            keepPairedSummary(app, on),
         )
         assertEquals(
             "Android forgets JemRec's pairing 7 days after it is made. Then JemRec has to pair again",
-            keepPairedSummary(on.copy(pairingKept = false)),
+            keepPairedSummary(app, on.copy(pairingKept = false)),
         )
         assertEquals(
             "Android forgets JemRec's pairing 1 day after it is made. Then JemRec has to pair again",
-            keepPairedSummary(on.copy(pairingKept = false, pairingDays = 1)),
+            keepPairedSummary(app, on.copy(pairingKept = false, pairingDays = 1)),
         )
-        assertEquals("Turns off when the recorder is running again", keepPairedSummary(on.copy(keepPairedWaiting = false)))
+        assertEquals("Turns off when the recorder is running again", keepPairedSummary(app, on.copy(keepPairedWaiting = false)))
     }
 
     @Test fun theSwitchInSettingsIsTheOneTheRowShows() {
         val state = Fixtures.ready().copy(screen = Screen.SETTINGS)
         show { AppScaffold(state, viewModel(state)) }
         compose.onNodeWithText("Keep JemRec paired").performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText(keepPairedSummary(state)).assertIsDisplayed()
+        compose.onNodeWithText(keepPairedSummary(app, state)).assertIsDisplayed()
     }
 
     @Test fun setupAsksAndTheAnswerWaitsForTheRecorder() {

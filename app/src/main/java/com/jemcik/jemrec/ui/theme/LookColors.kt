@@ -294,6 +294,11 @@ object LookFonts {
  * LookFonts.engraved is an AndroidFont whose loader builds it - once a
  * process - from the app's resources. Wrapped as a whole typeface instead,
  * Compose ignored the weight asked for, and Deck's lit key lost its bold.
+ *
+ * Turkish ğşĞŞİ are also missing from Share Tech Mono (cmap, 2026-11-20). Deck
+ * therefore draws its engraved face as JetBrains Mono in every language
+ * (Theme.deckFace); this chain remains for anything that still asks for
+ * LookFonts.engraved.
  */
 private object EngravedChain : AndroidFont.TypefaceLoader {
 

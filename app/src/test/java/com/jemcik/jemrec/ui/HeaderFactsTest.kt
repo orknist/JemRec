@@ -1,15 +1,28 @@
 package com.jemcik.jemrec.ui
 
+import android.content.Context
+import androidx.test.core.app.ApplicationProvider
+import com.jemcik.jemrec.R
 import com.jemcik.jemrec.calls.VoipApps
 import com.jemcik.jemrec.setup.SetupStep
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+import org.robolectric.annotation.ConscryptMode
 
 /** What every look's header says - one set of facts, so the three cannot
  *  disagree about whether the next call is recorded. */
+@RunWith(RobolectricTestRunner::class)
+@ConscryptMode(ConscryptMode.Mode.OFF)
+@Config(sdk = [36])
 class HeaderFactsTest {
+
+    private val ctx: Context = ApplicationProvider.getApplicationContext()
+    private val backOn = ctx.getString(R.string.off_back_on)
 
     private val ready = UiState(enabled = true, daemonRunning = true, automatic = true)
 
@@ -25,14 +38,14 @@ class HeaderFactsTest {
 
     @Test fun oneMarkPerSettingInAFixedOrder() {
         val all = Marks(automatic = true, answering = true, messengers = true, autoDeleteDays = 90)
-        assertEquals(listOf("AUTO", "ANS", "MSG", "DEL 90D"), litMarks(all, RecorderStatus.READY).map { it.label })
+        assertEquals(listOf("AUTO", "ANS", "MSG", "DEL 90D"), litMarks(ctx, all, RecorderStatus.READY).map { it.label })
         // The mode is one setting, so one mark: ASK instead of AUTO, never both.
-        assertEquals(listOf("ASK"), litMarks(Marks(false, false, false, 0), RecorderStatus.READY).map { it.label })
+        assertEquals(listOf("ASK"), litMarks(ctx, Marks(false, false, false, 0), RecorderStatus.READY).map { it.label })
     }
 
     @Test fun withRecordingOffTheModeMarkGoesOut() {
         val all = Marks(automatic = true, answering = true, messengers = true, autoDeleteDays = 365)
-        assertEquals(listOf("ANS", "MSG", "DEL 1Y"), litMarks(all, RecorderStatus.OFF).map { it.label })
+        assertEquals(listOf("ANS", "MSG", "DEL 1Y"), litMarks(ctx, all, RecorderStatus.OFF).map { it.label })
     }
 
     /** Settings draws each setting's mark from the same function the
@@ -40,14 +53,14 @@ class HeaderFactsTest {
      *  exactly Deck's LCD. */
     @Test fun settingsMarksAreTheHeadersMarks() {
         val some = Marks(automatic = false, answering = true, messengers = false, autoDeleteDays = 0)
-        val each = headerMarks(some, RecorderStatus.READY)
+        val each = headerMarks(ctx, some, RecorderStatus.READY)
         assertEquals(Marked.entries.toList(), each.map { it.setting })
         assertEquals(listOf("ASK", "ANS", "MSG", "DEL"), each.map { it.label })
         assertEquals(listOf(true, true, false, false), each.map { it.lit })
-        assertEquals(litMarks(some, RecorderStatus.READY), each.filter { it.lit })
+        assertEquals(litMarks(ctx, some, RecorderStatus.READY), each.filter { it.lit })
         // A setting that is off still has its mark in Settings, dark.
-        assertEquals(HeaderMark(Marked.MESSENGERS, "MSG", false), headerMark(Marked.MESSENGERS, some, RecorderStatus.READY))
-        assertFalse(headerMark(Marked.MODE, some, RecorderStatus.OFF).lit)
+        assertEquals(HeaderMark(Marked.MESSENGERS, "MSG", false), headerMark(ctx, Marked.MESSENGERS, some, RecorderStatus.READY))
+        assertFalse(headerMark(ctx, Marked.MODE, some, RecorderStatus.OFF).lit)
     }
 
     @Test fun messengersCountOnlyWhenAnAppIsBothInstalledAndOn() {
@@ -65,8 +78,8 @@ class HeaderFactsTest {
         assertEquals("30D", ageMark(30))
         assertEquals("6M", ageMark(180))
         assertEquals("1Y", ageMark(365))
-        assertEquals("6 months", ageWords(180))
-        assertEquals("90 days", ageWords(90))
+        assertEquals("6 months", ageWords(ctx, 180))
+        assertEquals("90 days", ageWords(ctx, 90))
     }
 
     @Test fun aScreenReaderHearsTheStateThenWhatIsOn() {
@@ -74,24 +87,24 @@ class HeaderFactsTest {
         assertEquals(
             "Ready to record. Records every call. Answering machine, messenger calls and " +
                 "auto-delete after 90 days are on.",
-            headerSpeech(ready, marks),
+            headerSpeech(ctx, ready, marks),
         )
         assertEquals(
             "Ready to record. Asks before each call. Answering machine is on.",
-            headerSpeech(ready.copy(automatic = false), Marks(false, true, false, 0)),
+            headerSpeech(ctx, ready.copy(automatic = false), Marks(false, true, false, 0)),
         )
     }
 
     @Test fun theRecorderDownSaysWhatToDo() {
         val none = Marks(true, false, false, 0)
         val down = ready.copy(daemonRunning = false)
-        assertTrue(headerSpeech(down.copy(onWifi = false), none).startsWith("Cannot record. Join any Wi-Fi"))
+        assertTrue(headerSpeech(ctx, down.copy(onWifi = false), none).startsWith("Cannot record. Join any Wi-Fi"))
         assertTrue(
-            headerSpeech(down.copy(networkNotAllowed = true), none)
+            headerSpeech(ctx, down.copy(networkNotAllowed = true), none)
                 .startsWith("Cannot record. Android has not allowed this Wi-Fi."),
         )
-        assertTrue(headerSpeech(down.copy(pairingRefused = true), none).startsWith("Cannot record. Wireless debugging turns JemRec away"))
-        assertTrue(headerSpeech(down, none).startsWith("Cannot record. The recorder did not start"))
+        assertTrue(headerSpeech(ctx, down.copy(pairingRefused = true), none).startsWith("Cannot record. Wireless debugging turns JemRec away"))
+        assertTrue(headerSpeech(ctx, down, none).startsWith("Cannot record. The recorder did not start"))
     }
 
     /** Nothing read yet is said as that: not "Cannot record" from the
@@ -104,8 +117,8 @@ class HeaderFactsTest {
         assertEquals(RecorderStatus.OFF, recorderStatus(unread.copy(enabled = false)))
         assertEquals(RecorderStatus.STARTING, recorderStatus(unread.copy(starting = true)))
         val marks = marks(unread, answering = true)
-        assertEquals(emptyList<HeaderMark>(), litMarks(marks, RecorderStatus.CHECKING))
-        assertEquals("Checking.", headerSpeech(unread, marks))
+        assertEquals(emptyList<HeaderMark>(), litMarks(ctx, marks, RecorderStatus.CHECKING))
+        assertEquals("Checking.", headerSpeech(ctx, unread, marks))
     }
 
     /** Nothing read yet, in any state: the answering machine's and the
@@ -116,7 +129,7 @@ class HeaderFactsTest {
         val marks = marks(unread, answering = true)
         assertFalse(marks.answering)
         assertFalse(marks.messengers)
-        assertFalse(headerSpeech(unread, marks).contains("answering machine"))
+        assertFalse(headerSpeech(ctx, unread, marks).contains("answering machine"))
         assertEquals(Instruction.SWITCH_ON, instruction(unread))
         assertEquals(Instruction.SWITCH_ON_OVER_WIFI, instruction(unread.copy(listUnread = false)))
     }
@@ -131,7 +144,7 @@ class HeaderFactsTest {
             val state = asking.copy(notificationsOff = what)
             assertEquals(RecorderStatus.CANNOT, recorderStatus(state))
             assertEquals(Instruction.TURN_ON_NOTIFICATIONS, instruction(state))
-            assertTrue(headerSpeech(state, Marks(false, false, false, 0)).startsWith("Cannot record. Ask first asks in a notification"))
+            assertTrue(headerSpeech(ctx, state, Marks(false, false, false, 0)).startsWith("Cannot record. Ask first asks in a notification"))
         }
         // Recorded without asking, notifications off are not "cannot record";
         // nor are problem alerts off, in Ask first.
@@ -144,8 +157,11 @@ class HeaderFactsTest {
         val downToo = asking.copy(notificationsOff = off, daemonRunning = false, onWifi = false)
         assertEquals(Instruction.JOIN_WIFI, instruction(downToo))
         // And Multitrack's word with it: the link is lost, not the question.
-        assertEquals("NO LINK", multitrackWord(recorderStatus(downToo), instruction(downToo)))
-        assertEquals("CAN'T ASK", multitrackWord(recorderStatus(asking.copy(notificationsOff = off)), instruction(asking.copy(notificationsOff = off))))
+        assertEquals(ctx.getString(R.string.mt_no_link), multitrackWord(ctx, recorderStatus(downToo), instruction(downToo)))
+        assertEquals(
+            ctx.getString(R.string.mt_cant_ask),
+            multitrackWord(ctx, recorderStatus(asking.copy(notificationsOff = off)), instruction(asking.copy(notificationsOff = off))),
+        )
     }
 
     /** Ask first with the Battery setting Restricted and exact call tracking
@@ -157,8 +173,8 @@ class HeaderFactsTest {
         val asking = ready.copy(automatic = false, batteryRestricted = true, callTracking = false)
         assertEquals(RecorderStatus.CANNOT, recorderStatus(asking))
         assertEquals(Instruction.ALLOW_BACKGROUND, instruction(asking))
-        assertEquals("CAN'T ASK", multitrackWord(RecorderStatus.CANNOT, instruction(asking)))
-        assertTrue(headerSpeech(asking, marks(asking, answering = false)).startsWith("Cannot record. With the battery use Restricted"))
+        assertEquals(ctx.getString(R.string.mt_cant_ask), multitrackWord(ctx, RecorderStatus.CANNOT, instruction(asking)))
+        assertTrue(headerSpeech(ctx, asking, marks(asking, answering = false)).startsWith("Cannot record. With the battery use Restricted"))
         // Tracking on, or Automatic, or not restricted: ready.
         assertEquals(RecorderStatus.READY, recorderStatus(asking.copy(callTracking = true)))
         assertEquals(RecorderStatus.READY, recorderStatus(asking.copy(automatic = true)))
@@ -184,13 +200,13 @@ class HeaderFactsTest {
         val none = Marks(true, false, false, 0)
         val off = ready.copy(enabled = false, debuggingOff = true)
         assertEquals(Instruction.SWITCH_ON_OVER_WIFI, instruction(off))
-        assertTrue(headerSpeech(off, none).startsWith("Off, with debugging off. Calls are not recorded; turning on needs Wi-Fi."))
+        assertTrue(headerSpeech(ctx, off, none).startsWith("Off, with debugging off. Calls are not recorded; turning on needs Wi-Fi."))
         // adbd on Start without Wi-Fi's port comes back anywhere (the Honor,
         // 2026-10-27): no Wi-Fi to send anyone looking for.
         val port = off.copy(portSet = true)
         assertEquals(Instruction.SWITCH_ON, instruction(port))
-        assertTrue(headerSpeech(port, none).startsWith("Off, with debugging off. Calls are not recorded."))
-        assertFalse("Wi-Fi" in headerSpeech(port, none))
+        assertTrue(headerSpeech(ctx, port, none).startsWith("Off, with debugging off. Calls are not recorded."))
+        assertFalse("Wi-Fi" in headerSpeech(ctx, port, none))
         // A plain off is a plain off, port or not.
         assertEquals(Instruction.SWITCH_ON, instruction(ready.copy(enabled = false, portSet = true)))
     }
@@ -201,7 +217,7 @@ class HeaderFactsTest {
                 Instruction.ALLOW_WIFI, Instruction.PAIR_AGAIN, Instruction.START_AGAIN,
                 Instruction.TURN_ON_NOTIFICATIONS, Instruction.ALLOW_BACKGROUND,
             ),
-            Instruction.entries.filter { it.tap != null }.toSet(),
+            Instruction.entries.filter { it.tapRes != null }.toSet(),
         )
     }
 

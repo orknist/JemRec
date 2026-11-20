@@ -35,10 +35,13 @@ import org.robolectric.annotation.GraphicsMode
 @Config(sdk = [36], qualifiers = ScreenTest.PHONE)
 class SetupScreenshots : ScreenTest() {
 
+    private val app = RuntimeEnvironment.getApplication()
+
     private fun backgroundCard(fontScale: Float = 1f) {
         // An Honor's App launch, as the setup check finds it (AutoStart.screen)
         // and the card names it.
         val honor = AutoStart.screenFor(
+            app,
             "com.hihonor.systemmanager",
             "com.hihonor.systemmanager.startupmgr.ui.StartupNormalAppListActivity",
         )
@@ -94,7 +97,7 @@ class SetupScreenshots : ScreenTest() {
     private fun refusedCard(fontScale: Float = 1f) {
         val state = Fixtures.ready().copy(
             step = SetupStep.FINISHING,
-            finishFailed = ShellGrant.advice(ShellGrant.Outcome.REFUSED, DeviceSkin.OPLUS, monitoring = true),
+            finishFailed = ShellGrant.advice(app, ShellGrant.Outcome.REFUSED, DeviceSkin.OPLUS, monitoring = true),
         )
         show(fontScale) { AppScaffold(state, viewModel(state)) }
         compose.onNodeWithText("Disable system optimization", substring = true).assertIsDisplayed()

@@ -1,5 +1,7 @@
 package com.jemcik.jemrec.system
 
+import androidx.test.core.app.ApplicationProvider
+import com.jemcik.jemrec.R
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -13,54 +15,61 @@ import org.junit.Test
  */
 class AutoStartTest {
 
+    private val app = ApplicationProvider.getApplicationContext<android.content.Context>()
+
     @Test fun anHonorIsToldManageManuallyOnAppLaunch() {
-        assertEquals("App launch", AutoStart.labelFor("com.hihonor.systemmanager"))
+        assertEquals(app.getString(R.string.autostart_app_launch), AutoStart.labelFor(app, "com.hihonor.systemmanager"))
         assertEquals(
-            "Find JemRec, switch it to Manage manually, and leave its switches on.",
-            AutoStart.instructionFor("com.hihonor.systemmanager",
+            app.getString(R.string.autostart_instruction_manage_manually),
+            AutoStart.instructionFor(app, "com.hihonor.systemmanager",
                 "com.hihonor.systemmanager.startupmgr.ui.StartupNormalAppListActivity"),
         )
     }
 
     @Test fun huaweisOlderProtectedAppsScreenGetsItsOwnLine() {
-        val line = AutoStart.instructionFor("com.huawei.systemmanager",
+        val line = AutoStart.instructionFor(app, "com.huawei.systemmanager",
             "com.huawei.systemmanager.optimize.process.ProtectActivity")
-        assertEquals("Find JemRec and switch it on, so it is protected.", line)
+        assertEquals(app.getString(R.string.autostart_instruction_protected), line)
     }
 
     @Test fun switchPerAppScreensAreToldToTurnTheSwitchOn() {
         for (pkg in listOf("com.miui.securitycenter", "com.coloros.safecenter", "com.oppo.safe", "com.vivo.permissionmanager")) {
-            assertEquals(pkg, "Find JemRec and turn its switch on.", AutoStart.instructionFor(pkg, null))
+            assertEquals(pkg, app.getString(R.string.autostart_instruction_switch_on), AutoStart.instructionFor(app, pkg, null))
         }
-        assertEquals("Autostart", AutoStart.labelFor("com.miui.securitycenter"))
+        assertEquals(app.getString(R.string.autostart_autostart), AutoStart.labelFor(app, "com.miui.securitycenter"))
     }
 
     @Test fun aSamsungIsSentToNeverSleepingApps() {
-        assertEquals("Battery", AutoStart.labelFor("com.samsung.android.lool"))
+        assertEquals(app.getString(R.string.autostart_battery), AutoStart.labelFor(app, "com.samsung.android.lool"))
         assertEquals(
-            "Open Background usage limits, then Never sleeping apps, and add JemRec.",
-            AutoStart.instructionFor("com.samsung.android.lool", "com.samsung.android.sm.ui.battery.BatteryActivity"),
+            app.getString(R.string.autostart_instruction_samsung),
+            AutoStart.instructionFor(app, "com.samsung.android.lool", "com.samsung.android.sm.ui.battery.BatteryActivity"),
         )
     }
 
     @Test fun nobodyButHonorAndHuaweiHearsManageManually() {
         for (pkg in listOf("com.miui.securitycenter", "com.coloros.safecenter", "com.vivo.permissionmanager",
             "com.samsung.android.lool", "com.asus.mobilemanager", null)) {
-            assertTrue(pkg.toString(), "Manage manually" !in AutoStart.instructionFor(pkg, null))
+            assertTrue(pkg.toString(), "Manage manually" !in AutoStart.instructionFor(app, pkg, null))
         }
     }
 
     @Test fun anUnknownScreenGetsTheGenericLine() {
-        assertEquals("Find JemRec and allow it to start and run in the background.", AutoStart.instructionFor(null, null))
-        assertNull(AutoStart.labelFor("com.asus.mobilemanager"))
+        assertEquals(app.getString(R.string.autostart_instruction_generic), AutoStart.instructionFor(app, null, null))
+        assertNull(AutoStart.labelFor(app, "com.asus.mobilemanager"))
     }
 
     @Test fun anUnknownScreensButtonReadsAsAButton() {
         // Not "the app's start-up settings", which is for the middle of
         // Settings' sentence: the card's button and step name it.
-        val asus = AutoStart.screenFor("com.asus.mobilemanager", "com.asus.mobilemanager.entry.FunctionActivity")
-        assertEquals("Start-up settings", asus.label)
-        assertEquals(AutoStart.Screen("App launch", AutoStart.instructionFor("com.hihonor.systemmanager", null)),
-            AutoStart.screenFor("com.hihonor.systemmanager", null))
+        val asus = AutoStart.screenFor(app, "com.asus.mobilemanager", "com.asus.mobilemanager.entry.FunctionActivity")
+        assertEquals(app.getString(R.string.autostart_startup_settings), asus.label)
+        assertEquals(
+            AutoStart.Screen(
+                app.getString(R.string.autostart_app_launch),
+                AutoStart.instructionFor(app, "com.hihonor.systemmanager", null),
+            ),
+            AutoStart.screenFor(app, "com.hihonor.systemmanager", null),
+        )
     }
 }

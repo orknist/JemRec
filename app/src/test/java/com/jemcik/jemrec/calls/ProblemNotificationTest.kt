@@ -58,7 +58,7 @@ class ProblemNotificationTest {
         AfterCall.notRecordedAbout(context, "f.dat", retried = true)
         AfterCall.postNotRecorded(context, "Is the storage full?")
         AfterCall.notRecordedAbout(context, "e.dat", retried = false)
-        AfterCall.postNotRecorded(context, AfterCall.NO_AUDIO)
+        AfterCall.postNotRecorded(context, AfterCall.noAudioReason(context))
         AfterCall.savedAfterAll(context, "f.dat")
         assertEquals(1, org.robolectric.Shadows.shadowOf(manager).allNotifications.size)
         // And the files before it are no longer what holds it up: one

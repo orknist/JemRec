@@ -5,8 +5,10 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
+import androidx.annotation.StringRes
 import androidx.core.content.edit
 import com.jemcik.jemrec.Prefs
+import com.jemcik.jemrec.R
 import com.jemcik.jemrec.capture.RecordingMode
 
 /**
@@ -60,7 +62,13 @@ object BatteryHealth {
     /** The Open App info button's PendingIntent (see post). */
     internal const val APP_INFO_REQUEST = 3801
 
+    @StringRes
+    val TITLE_RES: Int = R.string.battery_title
+
+    /** Matches [R.string.battery_title] (English default). */
     const val TITLE = "Battery use is Restricted"
+
+    fun getTitle(context: Context): String = context.getString(TITLE_RES)
 
     /** What it costs, in the card's and the notification's words. With
      *  exact call tracking off Android refuses every call's wake (measured,
@@ -68,16 +76,17 @@ object BatteryHealth {
      *  every call is saved only once JemRec is opened. With it on, a phone
      *  call goes through and a messenger call most likely does not
      *  (inferred) - "some". */
-    fun words(askFirst: Boolean, trackingOff: Boolean): String {
-        val cost = when {
-            askFirst && trackingOff -> "no call can be asked about, so none is recorded"
-            askFirst -> "calls it cannot ask about are not recorded"
-            trackingOff -> "every call is saved only when you open it"
-            else -> "some calls are saved only when you open it"
-        }
-        return "Android does not let a Restricted app run in the background: a recorder that stops " +
-            "may stay stopped until you open JemRec, missing calls meanwhile, and $cost. " +
-            "Allow its background use on App info's battery page."
+    @StringRes
+    private fun costRes(askFirst: Boolean, trackingOff: Boolean): Int = when {
+        askFirst && trackingOff -> R.string.battery_cost_ask_tracking
+        askFirst -> R.string.battery_cost_ask
+        trackingOff -> R.string.battery_cost_tracking
+        else -> R.string.battery_cost_some
+    }
+
+    fun words(context: Context, askFirst: Boolean, trackingOff: Boolean): String {
+        val cost = context.getString(costRes(askFirst, trackingOff))
+        return context.getString(R.string.battery_body, cost)
     }
 
     /** Android's word, a question to its activity manager. */
@@ -135,6 +144,7 @@ object BatteryHealth {
     }
 
     private fun currentWords(context: Context): String = words(
+        context,
         askFirst = RecordingMode.of(context) == RecordingMode.ON_DEMAND,
         trackingOff = !com.jemcik.jemrec.calls.CallTracking.enabled(context),
     )
@@ -214,8 +224,13 @@ object BatteryHealth {
             com.jemcik.jemrec.DeepLink.intent(context, com.jemcik.jemrec.DeepLink.Kind.BATTERY_SETTINGS),
             android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT,
         )
-        val built = com.jemcik.jemrec.calls.AfterCall.problem(context, TITLE, currentWords(context), home, "Open App info" to appInfo)
-            .setOnlyAlertOnce(quietly)
+        val built = com.jemcik.jemrec.calls.AfterCall.problem(
+            context,
+            getTitle(context),
+            currentWords(context),
+            home,
+            context.getString(R.string.battery_open_app_info) to appInfo,
+        ).setOnlyAlertOnce(quietly)
         val seen = com.jemcik.jemrec.calls.AfterCall.notifyProblem(context, NOTIFICATION_ID, built.build(), "battery")
         // Told once - if it could be seen; else at the next start.
         if (seen) Prefs.of(context).edit { putBoolean(KEY_TOLD, true) }

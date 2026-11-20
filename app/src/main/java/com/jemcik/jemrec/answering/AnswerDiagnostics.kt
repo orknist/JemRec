@@ -1,6 +1,9 @@
 package com.jemcik.jemrec.answering
 
 import android.content.Context
+import android.content.res.Resources
+import androidx.annotation.StringRes
+import com.jemcik.jemrec.R
 import android.content.SharedPreferences
 import androidx.core.content.edit
 import com.jemcik.jemrec.Prefs
@@ -75,21 +78,18 @@ object AnswerDiagnostics {
         /** The answering machine can be tried at all. */
         val possible: Boolean get() = permissions && (inCallMusic || screening || audioUnread)
 
-        /** Why not, in a sentence, or null. */
-        val problem: String?
+        /** Why not, as a string resource, or null. */
+        @get:StringRes
+        val problemRes: Int?
             get() = when {
-                !permissions && "mute" in missing.split(',') ->
-                    "This phone does not let the recorder mute your microphone, so a caller would " +
-                        "hear the room."
-                !permissions && "calls" in missing.split(',') ->
-                    "The recorder cannot tell when another app is in a call here, so it would " +
-                        "never answer."
-                !permissions -> "The recorder lacks a permission it needs here."
-                !inCallMusic && !screening && !audioUnread ->
-                    "This phone has no way to play a greeting into a call: its audio setup has " +
-                        "no in-call music output."
+                !permissions && "mute" in missing.split(',') -> R.string.diag_no_mute
+                !permissions && "calls" in missing.split(',') -> R.string.diag_no_calls_perm
+                !permissions -> R.string.diag_no_perm
+                !inCallMusic && !screening && !audioUnread -> R.string.diag_no_incall_music
                 else -> null
             }
+
+        fun problemText(res: Resources): String? = problemRes?.let { res.getString(it) }
     }
 
     /** The recorder's "DIAG 1" fields as a [StageOne]. */
@@ -347,14 +347,14 @@ object AnswerDiagnostics {
 
     /** The tested call types, in words: "Works on 2G", "Likely works on
      *  VoLTE, not tested on 2G". Null when nothing was tested. Pure. */
-    fun summary(results: Map<String, Verdict>): String? {
+    fun summary(results: Map<String, Verdict>, res: Resources): String? {
         if (results.isEmpty()) return null
         return results.entries.sortedBy { it.key }.joinToString("; ") { (type, v) ->
             when (v) {
-                Verdict.WORKS -> "Works on $type"
-                Verdict.LIKELY -> "Very likely works on $type"
-                Verdict.FAILS -> "Does not work on $type"
-                Verdict.INCONCLUSIVE -> "Test on $type did not finish"
+                Verdict.WORKS -> res.getString(R.string.diag_works_on, type)
+                Verdict.LIKELY -> res.getString(R.string.diag_likely_on, type)
+                Verdict.FAILS -> res.getString(R.string.diag_fails_on, type)
+                Verdict.INCONCLUSIVE -> res.getString(R.string.diag_inconclusive, type)
             }
         }
     }

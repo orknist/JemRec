@@ -24,7 +24,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.jemcik.jemrec.R
 import com.jemcik.jemrec.calls.CallHistory
 import com.jemcik.jemrec.recordings.Recording
 
@@ -71,19 +73,16 @@ fun CallsScreen(
                     Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    Text("See every call here", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.calls_see_every), style = MaterialTheme.typography.titleMedium)
                     Text(
-                        "This tab is your phone's call log, with each call's recording " +
-                            "beside it - and, for a call that was not recorded, why. It " +
-                            "needs permission to read your call log, and your contacts " +
-                            "for names and photos. Nothing leaves the phone.",
+                        stringResource(R.string.calls_call_log_body),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     FilledTonalButton(
                         onClick = { haptics.tap(); askForCallLog() },
                         modifier = Modifier.fillMaxWidth(),
-                    ) { Text("Allow") }
+                    ) { Text(stringResource(R.string.settings_allow)) }
                 }
             }
         }
@@ -138,7 +137,7 @@ fun CallsScreen(
             if (state.calls.isEmpty() && !state.listUnread && !state.callsUnread) {
                 item {
                     Text(
-                        "No calls in the call log yet.",
+                        stringResource(R.string.calls_no_log),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
@@ -152,11 +151,11 @@ fun CallsScreen(
                 item {
                     NoMatches(
                         when {
-                            narrowing.notRecorded -> "No unrecorded calls match."
-                            narrowing.messages -> "No messages match."
-                            narrowing.kept -> "No calls with a kept recording match."
-                            narrowing.favorites -> "No calls with favourite contacts match."
-                            else -> "No calls match your search."
+                            narrowing.notRecorded -> stringResource(R.string.calls_no_unrecorded)
+                            narrowing.messages -> stringResource(R.string.home_no_messages_match)
+                            narrowing.kept -> stringResource(R.string.calls_no_kept)
+                            narrowing.favorites -> stringResource(R.string.calls_no_fav)
+                            else -> stringResource(R.string.calls_no_match)
                         },
                     )
                 }

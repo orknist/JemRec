@@ -22,7 +22,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.jemcik.jemrec.R
 
 /**
  * How to share a recording, and the wait while it converts - for a Share
@@ -43,14 +45,14 @@ internal fun ShareSheets(state: UiState, vm: MainViewModel) {
         ModalBottomSheet(onDismissRequest = { vm.dismissShareChoice() }) {
             Column(Modifier.padding(bottom = 24.dp)) {
                 Text(
-                    "Share as",
+                    stringResource(R.string.share_as),
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 8.dp),
                 )
                 ListItem(
-                    headlineContent = { Text("Any device (.m4a)") },
+                    headlineContent = { Text(stringResource(R.string.share_any_device)) },
                     supportingContent = {
-                        Text("Converts first - plays on iPhone, Mac, Windows, anything")
+                        Text(stringResource(R.string.share_any_device_sub))
                     },
                     leadingContent = {
                         Icon(Icons.Filled.Share, contentDescription = null)
@@ -60,9 +62,9 @@ internal fun ShareSheets(state: UiState, vm: MainViewModel) {
                     },
                 )
                 ListItem(
-                    headlineContent = { Text("Original (.ogg)") },
+                    headlineContent = { Text(stringResource(R.string.share_original)) },
                     supportingContent = {
-                        Text("No conversion, smaller - best for Android and desktop")
+                        Text(stringResource(R.string.share_original_sub))
                     },
                     leadingContent = {
                         Icon(Icons.Filled.PlayArrow, contentDescription = null)
@@ -86,7 +88,7 @@ internal fun ShareSheets(state: UiState, vm: MainViewModel) {
             onDismissRequest = { vm.cancelConversion() },
             confirmButton = {
                 TextButton(onClick = { haptics.tap(); vm.cancelConversion() }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.settings_cancel))
                 }
             },
             text = {
@@ -95,7 +97,7 @@ internal fun ShareSheets(state: UiState, vm: MainViewModel) {
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
                     CircularProgressIndicator()
-                    Text("Converting to .m4a…")
+                    Text(stringResource(R.string.share_converting))
                 }
             },
         )

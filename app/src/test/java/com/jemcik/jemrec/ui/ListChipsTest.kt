@@ -1,22 +1,33 @@
 package com.jemcik.jemrec.ui
 
 import android.net.Uri
+import androidx.test.core.app.ApplicationProvider
+import com.jemcik.jemrec.R
 import com.jemcik.jemrec.calls.CallHistory
 import com.jemcik.jemrec.calls.CallHistory.Kind
 import com.jemcik.jemrec.calls.CallHistory.Status
 import com.jemcik.jemrec.recordings.Recording
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
 import org.mockito.Mockito
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+import org.robolectric.annotation.ConscryptMode
 
 /** The lists' chips, by one rule: a chip only where it would narrow its list
  *  to some of it - and the Calls tab's filters. */
+@RunWith(RobolectricTestRunner::class)
+@ConscryptMode(ConscryptMode.Mode.OFF)
+@Config(sdk = [36])
 class ListChipsTest {
 
     private val now = System.currentTimeMillis()
     private val day = 24L * 60 * 60 * 1000
+    private val res = ApplicationProvider.getApplicationContext<android.content.Context>().resources
 
     private fun facts(
         favorite: Boolean = false,
@@ -37,13 +48,19 @@ class ListChipsTest {
             ListChip(ChipKind.FAVORITES),
             ListChip(ChipKind.SEARCH),
         )
-        assertEquals(listOf("Favourites", "WhatsApp", "Messages", "\u201Colivia\u201D"), narrowedBy(on, "  olivia "))
-        assertEquals(listOf("Phone"), narrowedBy(setOf(ListChip(ChipKind.SOURCE, PHONE_SOURCE)), ""))
+        assertEquals(listOf("Favourites", "WhatsApp", "Messages", "\u201Colivia\u201D"), narrowedBy(on, "  olivia ", res))
+        assertEquals(listOf("Phone"), narrowedBy(setOf(ListChip(ChipKind.SOURCE, PHONE_SOURCE)), "", res))
+    }
+
+    @Test fun chipNamesComeFromResources() {
+        assertEquals(R.string.chip_favourites, chipNameRes(ListChip(ChipKind.FAVORITES)))
+        assertEquals(R.string.chip_phone, chipNameRes(ListChip(ChipKind.SOURCE, PHONE_SOURCE)))
+        assertNull(chipNameRes(ListChip(ChipKind.SOURCE, "whatsapp")))
     }
 
     @Test fun nothingNarrowsWithNothingLitOrSearchOpenWithNothingTyped() {
-        assertEquals(emptyList<String>(), narrowedBy(emptySet(), ""))
-        assertEquals(emptyList<String>(), narrowedBy(setOf(ListChip(ChipKind.SEARCH)), "   "))
+        assertEquals(emptyList<String>(), narrowedBy(emptySet(), "", res))
+        assertEquals(emptyList<String>(), narrowedBy(setOf(ListChip(ChipKind.SEARCH)), "   ", res))
     }
 
     @Test fun aChipIsDrawnOnlyWhereItLeavesSomeButNotAll() {
